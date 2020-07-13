@@ -7,14 +7,10 @@ $azExe;
 azLogin;
 azGetToken;
 azLogAnalyticsQuery;
+azGetSubscriptions;
 
 
 Begin["`Private`"];
-
-
-(* ::Text:: *)
-(*https://dev.loganalytics.io/documentation/Overview*)
-(*https://docs.microsoft.com/en-us/azure/application-gateway/application-gateway-diagnostics*)
 
 
 (* ::Subsection:: *)
@@ -41,6 +37,11 @@ azGetToken[subscriptionId_String] := RunProcess[{$azExe, "account", "get-access-
 
 (* ::Subsection:: *)
 (*Log analytics*)
+
+
+(* ::Text:: *)
+(*https://dev.loganalytics.io/documentation/Overview*)
+(*https://docs.microsoft.com/en-us/azure/application-gateway/application-gateway-diagnostics*)
 
 
 azLogAnalyticsQuery[

@@ -7,6 +7,7 @@ $azExe;
 azLogin;
 azGetToken;
 azLogAnalyticsQuery;
+azLogAnalyticsMetadata;
 azGetSubscriptions;
 
 
@@ -31,8 +32,10 @@ azGetSubscriptions[] := RunProcess[{$azExe ,"account","list"}] /.
 azGetToken[subscriptionId_String] := RunProcess[{$azExe, "account", "get-access-token"}] /.
 	KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_,"--subscription" ->subscriptionId }] :> 
 		ImportString[std,"RawJSON"] /. KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_}] :> 
-			ImportByteArray[StringToByteArray@std,"RawJSON"]
-			
+			Module[{a},a=ImportByteArray[StringToByteArray@std,"RawJSON"];a["expiresOn"]=DateObject[a["expiresOn"]];a]
+
+tokenValue[token_String] := token;
+tokenValue[KeyValuePattern["accessToken" -> token_String]] := token;
 
 
 (* ::Subsection:: *)
@@ -42,6 +45,24 @@ azGetToken[subscriptionId_String] := RunProcess[{$azExe, "account", "get-access-
 (* ::Text:: *)
 (*https://dev.loganalytics.io/documentation/Overview*)
 (*https://docs.microsoft.com/en-us/azure/application-gateway/application-gateway-diagnostics*)
+(*https://docs.microsoft.com/en-us/rest/api/loganalytics/dataaccess/metadata/get*)
+
+
+azLogAnalyticsMetadata[
+	cnn:KeyValuePattern[{
+		"subscriptionId"->_String,
+		"resourceGroupName"->_String, 
+		"resourceName" ->  _String, 
+		"accessToken"->token_}]
+] := Module[ {url,req,res,body},
+	url = StringTemplate[
+			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`resourceName`/api/metadata?api-version=2017-01-01-preview"][cnn];
+	req = HTTPRequest[url, <| Method->"GET", "ContentType"->"application/json", "Headers"->{"Authorization"->"Bearer " <> tokenValue@token} |>];
+	Sow[req];
+	res = URLRead@req;
+	Sow[res];
+	azParseRestResponde@res
+]
 
 
 azLogAnalyticsQuery[
@@ -55,8 +76,10 @@ azLogAnalyticsQuery[
 	url = StringTemplate[
 			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`resourceName`/api/query?api-version=2017-01-01-preview"][cnn];
 	body = ExportString[<|"query"->query|>,"RawJSON"];
-	req = HTTPRequest[url, <| Method->"POST", "Body"->body, "ContentType"->"application/json", "Headers"->{"Authorization"->"Bearer " <>token} |>];
+	req = HTTPRequest[url, <| Method->"POST", "Body"->body, "ContentType"->"application/json", "Headers"->{"Authorization"->"Bearer " <> tokenValue@token} |>];
+	Sow[req];
 	res = URLRead@req;
+	Sow[res];
 	azParseRestResponde@res /. ds_Dataset :> logAnalyticDS[ds]
 ]
 

@@ -9,12 +9,14 @@ azGetToken;
 azLogAnalyticsQuery;
 azLogAnalyticsMetadata;
 azGetSubscriptions;
+azLogAnalyticsKubeContainerShortNames;
+azLogAnalyticsKubeContainerIds;
 
 
 Begin["`Private`"];
 
 
-(* ::Subsection:: *)
+(* ::Section::Closed:: *)
 (*Base*)
 
 
@@ -38,7 +40,7 @@ tokenValue[token_String] := token;
 tokenValue[KeyValuePattern["accessToken" -> token_String]] := token;
 
 
-(* ::Subsection:: *)
+(* ::Section:: *)
 (*Log analytics*)
 
 
@@ -46,6 +48,10 @@ tokenValue[KeyValuePattern["accessToken" -> token_String]] := token;
 (*https://dev.loganalytics.io/documentation/Overview*)
 (*https://docs.microsoft.com/en-us/azure/application-gateway/application-gateway-diagnostics*)
 (*https://docs.microsoft.com/en-us/rest/api/loganalytics/dataaccess/metadata/get*)
+
+
+(* ::Subsection::Closed:: *)
+(*Meta data*)
 
 
 azLogAnalyticsMetadata[
@@ -63,6 +69,10 @@ azLogAnalyticsMetadata[
 	Sow[res];
 	azParseRestResponde@res
 ]
+
+
+(* ::Subsection::Closed:: *)
+(*Query*)
 
 
 azLogAnalyticsQuery[
@@ -96,6 +106,20 @@ logAnalyticField[col_, valueStr_] := col["ColumnName"]->logAnalyticFieldValue[co
 logAnalyticRow[columns_List,rows_List] := MapThread[logAnalyticField,{columns,rows}] // Association;
 logAnalyticTable[columns_List,rows_List] := logAnalyticRow[columns,#]& /@ rows;
 logAnalyticDS[ds_Dataset] := #TableName->logAnalyticTable[#Columns,#Rows]&/@ Normal[ds["Tables"]] // Association // Dataset;
+
+
+(* ::Subsection:: *)
+(*kubernetes*)
+
+
+azLogAnalyticsKubeContainerShortNames[cnn_] :=
+	azLogAnalyticsQuery[cnn, "KubePodInventory | distinct ContainerName "] /. ds_Dataset :> 
+			Sort@DeleteDuplicates[Last@StringSplit[#,"/"]& /@ (Normal@ ds["Table_0",All,"ContainerName"] /. "" -> Nothing)];
+
+
+azLogAnalyticsKubeContainerIds[cnn_, containerNameFilter_String] := 
+	azLogAnalyticsQuery[cnn, StringTemplate["KubePodInventory | where ContainerName has '``' | distinct ContainerID"][containerNameFilter]] /.
+		ds_Dataset :> (Normal[ds["Table_0",All,"ContainerID"]] /. "" -> Nothing)
 
 
 End[];

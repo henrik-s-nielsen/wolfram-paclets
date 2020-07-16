@@ -11,6 +11,8 @@ azLogAnalyticsMetadata;
 azGetSubscriptions;
 azLogAnalyticsKubeContainerShortNames;
 azLogAnalyticsKubeContainerIds;
+azLogAnalyticsContainerLogStatistics;
+azLogAnalyticsContainerLog;
 
 
 Begin["`Private`"];
@@ -120,6 +122,18 @@ azLogAnalyticsKubeContainerShortNames[cnn_] :=
 azLogAnalyticsKubeContainerIds[cnn_, containerNameFilter_String] := 
 	azLogAnalyticsQuery[cnn, StringTemplate["KubePodInventory | where ContainerName has '``' | distinct ContainerID"][containerNameFilter]] /.
 		ds_Dataset :> (Normal[ds["Table_0",All,"ContainerID"]] /. "" -> Nothing)
+
+
+azLogAnalyticsContainerLogStatistics[cnn_, containerId_] := 
+	azLogAnalyticsQuery[lawPocDefault,StringTemplate[
+		"ContainerLog | where ContainerID == '`1`' | summarize ContainerId='`1`',StartLogTime=min(TimeGenerated),EndLogTime=max(TimeGenerated),Count=count()"
+	][containerId]] /. 
+		ds_Dataset :> Normal[ds["Table_0",SortBy["StartLogTime"]]] /.{v_}:>v
+
+
+azLogAnalyticsContainerLog[cnn_, containerId_String] := azLogAnalyticsQuery[cnn, StringTemplate[
+	"ContainerLog | where ContainerID == '``' | project TimeGenerated,LogEntry "][containerId]] /.
+		ds_Dataset:>ds["Table_0", SortBy["TimeGenerated"], <|#,"ContainerId" -> containerId|> &]
 
 
 End[];

@@ -10,6 +10,7 @@ azLogAnalyticsQuery;
 azLogAnalyticsMetadata;
 azGetSubscriptions;
 azLogAnalyticsKubeContainerShortNames;
+azLogAnalyticsKubeContainerIdToShortName;
 azLogAnalyticsKubeContainerIds;
 azLogAnalyticsContainerLogStatistics;
 azLogAnalyticsContainerLog;
@@ -40,6 +41,9 @@ azGetToken[subscriptionId_String] := RunProcess[{$azExe, "account", "get-access-
 
 tokenValue[token_String] := token;
 tokenValue[KeyValuePattern["accessToken" -> token_String]] := token;
+
+toIso8601[dateRange_DateInterval] := toIso8601@Min@dateRange<>"/"<>toIso8601@Max@dateRange;
+toIso8601[date_DateObject] := DateString[DateObject[date,TimeZone->"Zulu"],"ISODateTime"]<>"Z";
 
 
 (* ::Section:: *)
@@ -73,21 +77,34 @@ azLogAnalyticsMetadata[
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Query*)
 
+
+azLogAnalyticsQuery[
+	cnn_, 
+	query_String
+] := azLogAnalyticsQuery[cnn, query, DateInterval[{DateObject[{1800}],DateObject[{3000}]}]]
+azLogAnalyticsQuery[
+	cnn_, 
+	query_String,
+	Null
+] := azLogAnalyticsQuery[cnn, query];
 
 azLogAnalyticsQuery[
 	cnn:KeyValuePattern[{
 		"subscriptionId"->_String,
 		"resourceGroupName"->_String, 
 		"resourceName" ->  _String, 
-		"accessToken"->token_}], 
-	query_String
+		"accessToken"->token_}
+	], 
+	query_String,
+	dateRange_DateInterval
 ] := Module[ {url,req,res,body},
+	Sow[query];
 	url = StringTemplate[
 			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`resourceName`/api/query?api-version=2017-01-01-preview"][cnn];
-	body = ExportString[<|"query"->query|>,"RawJSON"];
+	body = ExportString[<|"query"->query, "timespan" -> toIso8601[dateRange]|>,"RawJSON"];
 	req = HTTPRequest[url, <| Method->"POST", "Body"->body, "ContentType"->"application/json", "Headers"->{"Authorization"->"Bearer " <> tokenValue@token} |>];
 	Sow[req];
 	res = URLRead@req;
@@ -125,15 +142,24 @@ azLogAnalyticsKubeContainerIds[cnn_, containerNameFilter_String] :=
 
 
 azLogAnalyticsContainerLogStatistics[cnn_, containerId_] := 
-	azLogAnalyticsQuery[lawPocDefault,StringTemplate[
+	azLogAnalyticsQuery[cnn, StringTemplate[
 		"ContainerLog | where ContainerID == '`1`' | summarize ContainerId='`1`',StartLogTime=min(TimeGenerated),EndLogTime=max(TimeGenerated),Count=count()"
 	][containerId]] /. 
 		ds_Dataset :> Normal[ds["Table_0",SortBy["StartLogTime"]]] /.{v_}:>v
 
 
-azLogAnalyticsContainerLog[cnn_, containerId_String] := azLogAnalyticsQuery[cnn, StringTemplate[
-	"ContainerLog | where ContainerID == '``' | project TimeGenerated,LogEntry "][containerId]] /.
+azLogAnalyticsContainerLog[cnn_, containerIds_List, dateRange_] := Dataset@Flatten[Normal@azLogAnalyticsContainerLog[cnn,#,dateRange] & /@ containerIds];
+
+azLogAnalyticsContainerLog[cnn_, containerId_String, dateRange_DateInterval: Null] := azLogAnalyticsQuery[cnn, StringTemplate[
+	"ContainerLog | where ContainerID == '``' | project TimeGenerated,LogEntry "][containerId], 
+	dateRange] /.
 		ds_Dataset:>ds["Table_0", SortBy["TimeGenerated"], <|#,"ContainerId" -> containerId|> &]
+
+
+azLogAnalyticsKubeContainerIdToShortName[cnn_, containerId_String] :=
+	azLogAnalyticsQuery[cnn, 
+		StringTemplate["KubePodInventory | where ContainerID == '``' | take 1 "][containerId]] /.
+			ds_Dataset :> Last@StringSplit[Normal@ds["Table_0",1,"ContainerName"], "/"]
 
 
 End[];

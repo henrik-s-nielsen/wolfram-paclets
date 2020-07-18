@@ -1,5 +1,13 @@
 (* ::Package:: *)
 
+(* ::Title:: *)
+(*Azure*)
+
+
+(* ::Section::Closed:: *)
+(*Header*)
+
+
 BeginPackage["azure`"];
 
 
@@ -46,7 +54,7 @@ toIso8601[dateRange_DateInterval] := toIso8601@Min@dateRange<>"/"<>toIso8601@Max
 toIso8601[date_DateObject] := DateString[DateObject[date,TimeZone->"Zulu"],"ISODateTime"]<>"Z";
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Log analytics*)
 
 
@@ -77,7 +85,7 @@ azLogAnalyticsMetadata[
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Query*)
 
 
@@ -127,7 +135,7 @@ logAnalyticTable[columns_List,rows_List] := logAnalyticRow[columns,#]& /@ rows;
 logAnalyticDS[ds_Dataset] := #TableName->logAnalyticTable[#Columns,#Rows]&/@ Normal[ds["Tables"]] // Association // Dataset;
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*kubernetes*)
 
 
@@ -163,6 +171,10 @@ azLogAnalyticsKubeContainerIdToShortName[cnn_, containerId_String] :=
 
 
 End[];
+
+
+(* ::Section::Closed:: *)
+(*Footer*)
 
 
 EndPackage[]

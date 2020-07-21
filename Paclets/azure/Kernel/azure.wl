@@ -4,7 +4,7 @@
 (*Azure*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Header*)
 
 
@@ -28,7 +28,7 @@ azLogAnalyticsKubeSearchContainerLogs
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
@@ -65,7 +65,7 @@ toIso8601[date_DateObject] := DateString[DateObject[date,TimeZone->"Zulu"],"ISOD
 (*https://docs.microsoft.com/en-us/rest/api/loganalytics/dataaccess/metadata/get*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Meta data*)
 
 
@@ -74,11 +74,11 @@ azLogAnalyticsMetadata[
 		"subscriptionId"->_String,
 		"resourceGroupName"->_String, 
 		"resourceName" ->  _String, 
-		"accessToken"->token_}]
+		"authenticationHeader"->auth_String}]
 ] := Module[ {url,req,res,body},
 	url = StringTemplate[
 			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`resourceName`/api/metadata?api-version=2017-01-01-preview"][cnn];
-	req = HTTPRequest[url, <| Method->"GET", "ContentType"->"application/json", "Headers"->{"Authorization"->"Bearer " <> tokenValue@token} |>];
+	req = HTTPRequest[url, <| Method->"GET", "ContentType"->"application/json", "Headers"->{"Authorization"->auth} |>];
 	Sow[req];
 	res = URLRead@req;
 	Sow[res];
@@ -86,7 +86,7 @@ azLogAnalyticsMetadata[
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Query*)
 
 
@@ -105,7 +105,7 @@ azLogAnalyticsQuery[
 		"subscriptionId"->_String,
 		"resourceGroupName"->_String, 
 		"resourceName" ->  _String, 
-		"accessToken"->token_}
+		"authenticationHeader" -> auth_String}
 	], 
 	query_String,
 	dateRange_DateInterval
@@ -114,7 +114,7 @@ azLogAnalyticsQuery[
 	url = StringTemplate[
 			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`resourceName`/api/query?api-version=2017-01-01-preview"][cnn];
 	body = ExportString[<|"query"->query, "timespan" -> toIso8601[dateRange]|>,"RawJSON"];
-	req = HTTPRequest[url, <| Method->"POST", "Body"->body, "ContentType"->"application/json", "Headers"->{"Authorization"->"Bearer " <> tokenValue@token} |>];
+	req = HTTPRequest[url, <| Method->"POST", "Body"->body, "ContentType"->"application/json", "Headers"->{"Authorization"-> auth} |>];
 	Sow[req];
 	res = URLRead@req;
 	Sow[res];
@@ -157,7 +157,7 @@ azLogAnalyticsKubeContainerLogStatistics[cnn_, containerId_] :=
 		ds_Dataset :> Normal[ds["Table_0",SortBy["StartLogTime"]]] /.{v_}:>v
 
 
-azLogAnalyticsKubeContainerLog[cnn_, containerIds_List, dateRange_] := Dataset@Flatten[Normal@azLogAnalyticsContainerLog[cnn,#,dateRange] & /@ containerIds];
+azLogAnalyticsKubeContainerLog[cnn_, containerIds_List, dateRange_] := Dataset@Flatten[Normal@azLogAnalyticsKubeContainerLog[cnn,#,dateRange] & /@ containerIds];
 
 azLogAnalyticsKubeContainerLog[cnn_, containerId_String, dateRange_DateInterval: Null] := azLogAnalyticsQuery[cnn, StringTemplate[
 	"ContainerLog | where ContainerID == '``' | project TimeGenerated,LogEntry "][containerId], 
@@ -172,8 +172,15 @@ azLogAnalyticsKubeContainerIdToShortName[cnn_, containerId_String] :=
 
 
 azLogAnalyticsKubeSearchContainerLogs[cnn_, str_String, dateRange_DateInterval: Null] := azLogAnalyticsQuery[cnn, StringTemplate[
-	"ContainerLog | where LogEntry  contains '``' | project TimeGenerated,LogEntry,ContainerID "][str], dateRange] /.
+	"ContainerLog | where LogEntry  contains '``' | take 1000 | project TimeGenerated,LogEntry,ContainerID "][str], dateRange] /.
 		ds_Dataset:>ds["Table_0"]
+
+
+(* ::Section:: *)
+(*DevOps*)
+
+
+
 
 
 (* ::Section::Closed:: *)

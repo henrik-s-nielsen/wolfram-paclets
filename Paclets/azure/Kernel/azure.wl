@@ -4,7 +4,7 @@
 (*Azure*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Header*)
 
 
@@ -19,6 +19,8 @@ azGetToken;
 azRef;
 azGetSubscriptions;
 azParseRefFromId;
+azInfo;
+azOpenUi;
 
 (* Log analytics *)
 azLogAnalyticsQuery;
@@ -36,15 +38,52 @@ azLogAnalyticsKubeSearchContainerLogs;
 azApimServices;
 azApimLoggers;
 
+(* Event Hubs *)
+azEventHubs;
+azEventHubNamespaces;
+
 (* Azure DevOps *)
 azDevOpsProjects;
+azDevOpsProjectList;
 azDevOpsGitRepositories;
+azDevOpsGitRepositoryList;
+azDevOpsPipelines;
+azDevOpsPipelineList;
+azDevOpsReleaseDefinitions;
+azDevOpsReleaseDefinitionList;
+azDevOpsReleases;
+azDevOpsReleaseList;
+
+
+(* temp *)
+azRefDevOpsPattern;
+g;
 
 
 Begin["`Private`"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
+(*Icons*)
+
+
+(* ::Input:: *)
+(**)
+
+
+(* Notebook define azIcons variable *)
+NotebookImport[DirectoryName@FindFile@"azure`"<>"icons.nb","Input"->"Expression"];
+
+icons =  RemoveBackground@Image[#,ImageSize->15]& /@ azIcons;
+
+iconName["devOps.pipeline"] := "devOps.pipeline";
+iconName["devOps.releaseDefinition"] := "devOps.pipeline";
+iconName["devOps.release"] := "devOps.pipeline";
+iconName["devOps.repository"] := "devOps.repository";
+iconName[type_] := "devOps.default";
+
+
+(* ::Section::Closed:: *)
 (*Base*)
 
 
@@ -86,6 +125,15 @@ azHttpGet[authorizationHeader_String,  url_String] := Module[
 	azParseRestResponde@res
 ]
 
+azureIdToAzRef[id_String] := 
+	StringCases[id, 
+		"subscriptions/" ~~ subscription:(Except["/"]..) ~~
+		"/resourceGroups/" ~~ resourceGrp:(Except["/"]..) ~~ 
+		"/providers/" ~~ provider:(Except["/"]..)~~"/" ~~ 
+		rest:((Except["?"] | Except[EndOfString])..) :> {
+			provider,subscription,resourceGrp,rest }, IgnoreCase->True] /. {v_} :> azureId2azRef@v;
+
+
 
 (* ::Section::Closed:: *)
 (*Log analytics*)
@@ -111,7 +159,7 @@ azLogAnalyticsWorkspaces[
 		ds_Dataset :> ds["value", All, <|"azRef"-> azRef[<|"resourceName" -> #name, azParseRefFromId[#id] |>], #|> &]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Meta data*)
 
 
@@ -132,7 +180,7 @@ azLogAnalyticsWorkspaceMetadata[
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Query*)
 
 
@@ -183,7 +231,7 @@ logAnalyticTable[columns_List,rows_List] := logAnalyticRow[columns,#]& /@ rows;
 logAnalyticDS[ds_Dataset] := #TableName->logAnalyticTable[#Columns,#Rows]&/@ Normal[ds["Tables"]] // Association // Dataset;
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*kubernetes*)
 
 
@@ -231,7 +279,7 @@ azLogAnalyticsKubeSearchContainerLogs[auth_,ref_, str_String, dateRange_: Null] 
 		ds_Dataset:>ds["Table_0"]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*API manager*)
 
 
@@ -260,16 +308,191 @@ azApimLoggers[
 
 
 (* ::Section::Closed:: *)
+(*Event Hubs*)
+
+
+(* ::Subsubsection:: *)
+(*Namespaces*)
+
+
+(* azureIdToAzRef[{t"Microsoft.EventHub",sub_,resGrp_, rest_}]:=azRef[<|
+	"type" \[Rule] t,
+	"subscriptionId" \[Rule] sub,
+	"resourceGroupName" \[Rule]resGrp
+|>];
+azRefToAzureId[ref_azRef] := 
+	StringTemplate["/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/`type`/namespaces/ts-scb-test-apimgt-poc-ehub-ns"] *)
+
+azEventHubNamespaces[authorizationHeader_String, azRef[ref:KeyValuePattern[{
+		"subscriptionId" -> _String
+	}]]
+] := azHttpGet[
+	authorizationHeader,
+	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.EventHub/namespaces?api-version=2017-04-01"][ref]
+] /. ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|"namespace" -> #name, azParseRefFromId[#id]|>], # |>&]
+
+
+(* ::Subsubsection:: *)
+(*EventHubs*)
+
+
+azEventHubs[authorizationHeader_String, azRef[ref:KeyValuePattern[{
+		"subscriptionId" -> _String,
+		"resourceGroupName" -> _String,
+		"namespace" -> _String
+	}]]
+] := azHttpGet[
+	authorizationHeader,
+	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.EventHub/namespaces/`namespace`/eventhubs?api-version=2017-04-01"][ref]
+] /. ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|"eventhub" -> #name, ref|>], # |>&]
+
+
+(* ::Section:: *)
 (*DevOps*)
 
 
-azDevOpsProjects[cnn:KeyValuePattern[{"authorizationHeader" -> _String, "organization" -> organization_String}]] := azHttpGet[cnn, 
-	StringTemplate["https://dev.azure.com/``/_apis/projects?api-version=2.0"][URLEncode@organization]] /. ds_Dataset :> ds["value"];
+(* ::Text:: *)
+(*https://docs.microsoft.com/en-us/rest/api/azure/devops/?view=azure-devops-rest-6.0*)
 
 
-azDevOpsGitRepositories[authorizationHeader_String, ref:KeyValuePattern[{"organization" -> organization_String, "project"->project_String}]] := azHttpGet[authorizationHeader, 
-	StringTemplate["https://dev.azure.com/``/``/_apis/git/repositories?api-version=6.0-preview.1"][URLEncode@organization,URLEncode@project]] /. 
-		ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|ref, "repository" -> #name |>], # |> &]
+(* ::Subsection::Closed:: *)
+(*Common*)
+
+
+refLabel[ref_Association] := Switch[ref["azType"],
+	"devOps.project", ref["projectName"],
+	"devOps.repository", ref["repositoryName"],
+	"devOps.pipeline", ref["pipelineName"],
+	"devOps.releaseDefinition", ref["definitionName"],
+	"devOps.release", ref["releaseDefinition"] <> "/" <> ToString@ref["releaseId"],
+	_, "???"
+];
+
+azRef /: MakeBoxes[obj:azRef[ref_Association], fmt_] :=
+Block[{type, bg, display},
+	bg = Lighter[Blue, 0.9];
+	type = Last@StringSplit[ref["azType"],"."];
+	display = Tooltip[
+		Framed[
+			Row[{icons[iconName@ref["azType"]]," ",Style[type, Italic], ": ", Style[refLabel@ref,Bold]}],
+			Background -> bg,
+			BaselinePosition -> Baseline,
+			BaseStyle -> "Panel",
+			FrameMargins -> {{5,5},{3,3}},
+			FrameStyle -> GrayLevel[0.8],
+			RoundingRadius -> 5
+		],
+		Grid[KeyValueMap[{Style[#1,Bold],#2}&,ref],Alignment->Left]
+	];
+	
+	(* should probably recast this as a TemplateBox eventually *)
+	With[{boxes = ToBoxes[display, fmt]},
+		InterpretationBox[boxes, obj]
+	]
+]
+
+
+azRefDevOpsPattern[azType_String] := azRefDevOpsPattern[azType, <||>];
+azRefDevOpsPattern[azType_String,asc_Association] := With[
+	{inner = <|
+		"azType"->azType,
+		"organizationName" -> organizationName_String, 
+		"projectName"->projectName_String,
+		asc
+	|>},
+	refObj:azRef[ref:KeyValuePattern@Normal@inner]
+]
+
+
+(* ::Subsection::Closed:: *)
+(*Projects*)
+
+
+azDevOpsProjects[args___] := azDevOpsProjectList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
+azDevOpsProjectList[authorizationHeader_String, azRef[ref:KeyValuePattern[{
+	"organizationName" -> organization_String
+}]]] := 
+	azHttpGet[authorizationHeader, 
+		StringTemplate["https://dev.azure.com/``/_apis/projects?api-version=2.0"][URLEncode@organization]] /. 
+			ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|
+				"azType" -> "devOps.project",
+				"organizationName" -> organization,
+				"projectName" -> #name
+			|>], #|> &]
+
+
+(* ::Subsection::Closed:: *)
+(*Git*)
+
+
+azDevOpsGitRepositories[args___] := azDevOpsGitRepositoryList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
+azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] := 
+	azHttpGet[authorizationHeader, 
+		StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_apis/git/repositories?api-version=6.0-preview.1"][URLEncode/@ref]] /. 
+			ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|
+				"azType" -> "devOps.repository",
+				"organizationName" -> organizationName,
+				"projectName" -> projectName,
+				"repositoryName" -> #name		
+			|>], #|> &]
+
+
+(* ::Subsection::Closed:: *)
+(*Pipelines*)
+
+
+azDevOpsPipelines[args___] := azDevOpsPipelineList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
+azDevOpsPipelineList[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] :=
+	azHttpGet[authorizationHeader, 
+		StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_apis/pipelines?api-version=6.0-preview.1"][URLEncode/@ref]] /.
+			ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|
+				"azType" -> "devOps.pipeline",
+				"organizationName" -> organizationName,
+				"projectName" -> projectName,
+				"pipelineName" -> #name		
+			|>], #|> &]
+
+
+azDevOpsReleaseDefinitions[args___] := azDevOpsReleaseDefinitionList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
+azDevOpsReleaseDefinitionList[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] :=
+	azHttpGet[authorizationHeader, 
+		StringTemplate["https://vsrm.dev.azure.com/`organizationName`/`projectName`/_apis/release/definitions?api-version=5.1"][URLEncode/@ref]] /.
+			ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|
+				"azType" -> "devOps.releaseDefinition",
+				"organizationName" -> organizationName,
+				"projectName" -> projectName,
+				"definitionName" -> #name,
+				"definitionId" -> #id		
+			|>], #|> &]
+
+
+
+azOpenUi[azRefDevOpsPattern["devOps.release", <|"releaseId" -> releaseId_|>]] := Module[{url},
+	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_release?releaseId=`releaseId`&_a=release-summary"]
+		[URLEncode /@ ref];
+	Sow[url];
+	SystemOpen[url];
+];
+
+azInfo[authorizationHeader_String, azRefDevOpsPattern["devOps.release", <|"releaseId" -> releaseId_|>]] := 
+	azHttpGet[authorizationHeader,
+		StringTemplate["https://vsrm.dev.azure.com/`organizationName`/`projectName`/_apis/release/releases/`releaseId`?api-version=6.0-preview.8"][URLEncode/@ref]
+	] /. ds_Dataset :> ds[<| "azRef" -> azRef@ref, # |>&];
+
+azDevOpsReleases[args___] := azDevOpsReleaseList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
+azDevOpsReleaseList[
+	authorizationHeader_String, 
+	azRefDevOpsPattern["devOps.releaseDefinition", <|"definitionId" -> definitionId_|>]
+] :=
+	azHttpGet[authorizationHeader, 
+		StringTemplate["https://vsrm.dev.azure.com/`organizationName`/`projectName`/_apis/release/releases?definitionId=`definitionId`"][URLEncode/@ref]] /.
+			ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|
+				"azType" -> "devOps.release",
+				"organizationName" -> organizationName,
+				"projectName" -> projectName,
+				"releaseId" -> #id,
+				"releaseDefinition" -> #releaseDefinition["name"]
+			|>], #|> &]
 
 
 (* ::Section::Closed:: *)

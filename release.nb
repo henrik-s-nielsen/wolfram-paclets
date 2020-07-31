@@ -1,0 +1,393 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='WolframDesktop 12.1' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       161,          7]
+NotebookDataLength[     15762,        385]
+NotebookOptionsPosition[     13260,        340]
+NotebookOutlinePosition[     13656,        356]
+CellTagsIndexPosition[     13613,        353]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[BoxData[
+ RowBox[{"SetDirectory", "@", 
+  RowBox[{"NotebookDirectory", "[", "]"}]}]], "Input",
+ CellChangeTimes->{{3.8051886475500813`*^9, 3.805188658806177*^9}, {
+  3.805190103745265*^9, 3.805190110508716*^9}},
+ CellLabel->
+  "In[145]:=",ExpressionUUID->"e15eda4b-bec8-44e0-b328-6ed0e0128d17"],
+
+Cell[BoxData["\<\"C:\\\\Users\\\\w101849\\\\projects\\\\wolfram\\\\wolfram-\
+paclets\"\>"], "Output",
+ CellChangeTimes->{{3.8051886549776587`*^9, 3.805188659229577*^9}, 
+   3.8051900517779303`*^9, 3.805190111496009*^9},
+ CellLabel->
+  "Out[145]=",ExpressionUUID->"205459f4-bded-4779-a821-79a9ce3bd979"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"FileNames", "[", 
+   RowBox[{"All", ",", "\"\<Paclets\>\""}], "]"}], "//", 
+  "TableForm"}]], "Input",
+ CellChangeTimes->{{3.8051886836123667`*^9, 3.8051886867746787`*^9}, {
+  3.8051900590140176`*^9, 3.8051900661479692`*^9}, {3.805190142523982*^9, 
+  3.8051901564686384`*^9}},
+ CellLabel->
+  "In[148]:=",ExpressionUUID->"96bcfbe2-b508-48ba-b534-2d8250892f51"],
+
+Cell[BoxData[
+ TagBox[
+  TagBox[GridBox[{
+     {"\<\"Paclets\\\\azure\"\>"},
+     {"\<\"Paclets\\\\azure-1.0.paclet\"\>"},
+     {"\<\"Paclets\\\\azure-1.1.paclet\"\>"},
+     {"\<\"Paclets\\\\testPackage\"\>"},
+     {"\<\"Paclets\\\\testPackage-1.0.paclet\"\>"},
+     {"\<\"Paclets\\\\testPackage-1.1.paclet\"\>"},
+     {"\<\"Paclets\\\\testPackage-1.2.paclet\"\>"},
+     {"\<\"Paclets\\\\testPackage-1.3.paclet\"\>"},
+     {"\<\"Paclets\\\\testPackage-1.4.paclet\"\>"},
+     {"\<\"Paclets\\\\viewers\"\>"},
+     {"\<\"Paclets\\\\viewers-1.0.paclet\"\>"},
+     {"\<\"Paclets\\\\virtualbox\"\>"}
+    },
+    GridBoxAlignment->{"Columns" -> {{Left}}, "Rows" -> {{Baseline}}},
+    GridBoxSpacings->{"Columns" -> {
+        Offset[0.27999999999999997`], {
+         Offset[0.5599999999999999]}, 
+        Offset[0.27999999999999997`]}, "Rows" -> {
+        Offset[0.2], {
+         Offset[0.4]}, 
+        Offset[0.2]}}],
+   Column],
+  Function[BoxForm`e$, 
+   TableForm[BoxForm`e$]]]], "Output",
+ CellChangeTimes->{
+  3.8051900668473883`*^9, 3.8051901134966793`*^9, {3.8051901507672157`*^9, 
+   3.8051901568058205`*^9}},
+ CellLabel->
+  "Out[148]//TableForm=",ExpressionUUID->"2b05db15-f965-4a06-a998-\
+7f086b2df961"]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"package", "=", "\"\<azure\>\""}], ";"}]], "Input",
+ CellChangeTimes->{{3.805189497416642*^9, 3.8051895046208334`*^9}},
+ CellLabel->
+  "In[131]:=",ExpressionUUID->"cdfb398b-f80b-4d0f-bc58-26d78d615c16"],
+
+Cell[BoxData[
+ RowBox[{"SystemOpen", "[", 
+  RowBox[{"File", "@", 
+   RowBox[{"FileNameJoin", "[", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<Paclets\>\"", ",", 
+      "package", ",", "\"\<PacletInfo.wl\>\""}], "}"}], "]"}]}], 
+  "]"}]], "Input",
+ CellChangeTimes->{{3.8051893937719913`*^9, 3.8051895533416367`*^9}, {
+   3.8051896020180416`*^9, 3.8051896028743277`*^9}, {3.8051897195912614`*^9, 
+   3.8051897218705816`*^9}, 3.805189979747845*^9},
+ CellLabel->
+  "In[141]:=",ExpressionUUID->"46bf7c47-33bb-4dbb-a2dd-3b7c3217b624"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"CreatePacletArchive", "[", 
+  RowBox[{"FileNameJoin", "[", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<Paclets\>\"", ",", 
+     "package"}], "}"}], "]"}], "]"}]], "Input",
+ CellChangeTimes->{{3.805189270327067*^9, 3.805189298050441*^9}, {
+  3.8051893552847624`*^9, 3.8051893737062635`*^9}, {3.8051898112258434`*^9, 
+  3.8051898120217075`*^9}, {3.805189871764576*^9, 3.805189905774193*^9}, {
+  3.805189992039124*^9, 3.8051899940806704`*^9}},
+ CellLabel->
+  "In[142]:=",ExpressionUUID->"203efdef-e2ff-481e-842d-9dc27c1cf92e"],
+
+Cell[BoxData["\<\"C:\\\\Users\\\\w101849\\\\projects\\\\wolfram\\\\wolfram-\
+paclets\\\\Paclets\\\\azure-1.1.paclet\"\>"], "Output",
+ CellChangeTimes->{3.8051898760368357`*^9, 3.805189906239524*^9, 
+  3.805189999612214*^9},
+ CellLabel->
+  "Out[142]=",ExpressionUUID->"96c79c7e-30b8-4bca-acba-a4904f68b15b"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"PacletManager`BuildPacletSiteFiles", "[", 
+  RowBox[{"FileNameJoin", "[", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<PacletInfo.wl\>\"", 
+     ",", "\"\<Paclets\>\""}], "}"}], "]"}], "]"}]], "Input",
+ CellChangeTimes->{{3.8051904138484783`*^9, 3.805190464813696*^9}, {
+  3.8051905168313675`*^9, 3.8051905293172894`*^9}, {3.8051905755321765`*^9, 
+  3.805190630497965*^9}},
+ CellLabel->
+  "In[155]:=",ExpressionUUID->"e3ed1482-7a03-4a44-9f94-4ecfbb4056e3"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "OpenWrite", "noopen", 
+   "\"Cannot open \
+\\!\\(\\*RowBox[{\\\"\\\\\\\"C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\w101849\\\
+\\\\\\\\\\\\\\projects\\\\\\\\\\\\\\\\wolfram\\\\\\\\\\\\\\\\wolfram-paclets\\\
+\\\\\\\\\\\\\\PacletInfo.wl\\\\\\\\\\\\\\\\Paclets\\\\\\\\\\\\\\\\PacletSite.\
+m\\\\\\\"\\\"}]\\).\"", 2, 155, 13, 31445476735562244474, "Local"},
+  "MessageTemplate"]], "Message", "MSG",
+ CellChangeTimes->{3.805190631807704*^9, 3.8051906732671556`*^9},
+ CellLabel->
+  "During evaluation of \
+In[155]:=",ExpressionUUID->"4a73d303-d98d-4647-a840-eaf7ba542c4b"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "WriteString", "strml", 
+   "\"\\!\\(\\*RowBox[{\\\"$Failed\\\"}]\\) is not a string, stream, or list \
+of strings and streams.\"", 2, 155, 14, 31445476735562244474, "Local"},
+  "MessageTemplate"]], "Message", "MSG",
+ CellChangeTimes->{3.805190631807704*^9, 3.8051906732827606`*^9},
+ CellLabel->
+  "During evaluation of \
+In[155]:=",ExpressionUUID->"39f654b4-5412-40bf-b1ec-92a53d67a9a7"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "WriteString", "strml", 
+   "\"\\!\\(\\*RowBox[{\\\"$Failed\\\"}]\\) is not a string, stream, or list \
+of strings and streams.\"", 2, 155, 15, 31445476735562244474, "Local"},
+  "MessageTemplate"]], "Message", "MSG",
+ CellChangeTimes->{3.805190631807704*^9, 3.8051906732827606`*^9},
+ CellLabel->
+  "During evaluation of \
+In[155]:=",ExpressionUUID->"d62ea4e6-0d2d-40db-b93e-5083581cfd39"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "Close", "stream", 
+   "\"\\!\\(\\*RowBox[{\\\"$Failed\\\"}]\\) is not a string, SocketObject, \
+InputStream[ ], or OutputStream[ ].\"", 2, 155, 16, 31445476735562244474, 
+   "Local"},
+  "MessageTemplate"]], "Message", "MSG",
+ CellChangeTimes->{3.805190631807704*^9, 3.8051906732827606`*^9},
+ CellLabel->
+  "During evaluation of \
+In[155]:=",ExpressionUUID->"727a4c3a-7653-4b9d-b480-9cded432d45c"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "Java", "excptn", 
+   "\"A Java exception occurred: \
+\\!\\(\\*RowBox[{\\\"\\\\\\\"java.io.FileNotFoundException: \
+C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\w101849\\\\\\\\\\\\\\\\projects\\\\\\\\\
+\\\\\\\\wolfram\\\\\\\\\\\\\\\\wolfram-paclets\\\\\\\\\\\\\\\\PacletInfo.wl\\\
+\\\\\\\\\\\\\\Paclets\\\\\\\\\\\\\\\\PacletSite.m (The system cannot find the \
+path specified)\\\\\\\\n\\\\\\\\tat \
+java.base/java.io.FileInputStream.open0(Native Method)\\\\\\\\n\\\\\\\\tat \
+java.base/java.io.FileInputStream.open(FileInputStream.java:219)\\\\\\\\n\\\\\
+\\\\tat java.base/java.io.FileInputStream.<init>(FileInputStream.java:157)\\\\\
+\\\\n\\\\\\\\tat \
+java.base/java.io.FileInputStream.<init>(FileInputStream.java:112)\\\\\\\\n\\\
+\\\\\\tat \
+java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(\
+Native Method)\\\\\\\\n\\\\\\\\tat \
+java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(\
+NativeConstructorAccessorImpl.java:62)\\\\\\\\n\\\\\\\\tat \
+java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(\
+DelegatingConstructorAccessorImpl.java:45)\\\\\\\\n\\\\\\\\tat \
+java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:490)\\\\\
+\\\"\\\"}]\\).\"", 2, 155, 17, 31445476735562244474, "Local", "JLink`Java"},
+  "MessageTemplate2"]], "Message", "MSG",
+ CellChangeTimes->{3.805190631807704*^9, 3.8051906733009014`*^9},
+ CellLabel->
+  "During evaluation of \
+In[155]:=",ExpressionUUID->"4484b58d-a283-4f27-8148-5bb133cc0cac"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "JavaNew", "fail", 
+   "\"Error calling constructor for class \
+\\!\\(\\*RowBox[{\\\"\\\\\\\"java.io.FileInputStream\\\\\\\"\\\"}]\\).\"", 2, 
+   155, 18, 31445476735562244474, "Local", "JLink`JavaNew"},
+  "MessageTemplate2"]], "Message", "MSG",
+ CellChangeTimes->{3.805190631807704*^9, 3.8051906733009014`*^9},
+ CellLabel->
+  "During evaluation of \
+In[155]:=",ExpressionUUID->"0989003e-dbeb-4249-a6b5-4f624f554789"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "Java", "excptn", 
+   "\"A Java exception occurred: \
+\\!\\(\\*RowBox[{\\\"\\\\\\\"java.io.FileNotFoundException: \
+C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\w101849\\\\\\\\\\\\\\\\projects\\\\\\\\\
+\\\\\\\\wolfram\\\\\\\\\\\\\\\\wolfram-paclets\\\\\\\\\\\\\\\\PacletInfo.wl\\\
+\\\\\\\\\\\\\\Paclets\\\\\\\\\\\\\\\\PacletSite.mz (The system cannot find \
+the path specified)\\\\\\\\n\\\\\\\\tat \
+java.base/java.io.FileOutputStream.open0(Native Method)\\\\\\\\n\\\\\\\\tat \
+java.base/java.io.FileOutputStream.open(FileOutputStream.java:298)\\\\\\\\n\\\
+\\\\\\tat \
+java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:237)\\\\\\\\n\
+\\\\\\\\tat \
+java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:126)\\\\\\\\n\
+\\\\\\\\tat \
+java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(\
+Native Method)\\\\\\\\n\\\\\\\\tat \
+java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(\
+NativeConstructorAccessorImpl.java:62)\\\\\\\\n\\\\\\\\tat \
+java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(\
+DelegatingConstructorAccessorImpl.java:45)\\\\\\\\n\\\\\\\\tat \
+java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:490)\\\\\
+\\\"\\\"}]\\).\"", 2, 155, 19, 31445476735562244474, "Local", "JLink`Java"},
+  "MessageTemplate2"]], "Message", "MSG",
+ CellChangeTimes->{3.805190631807704*^9, 3.8051906733009014`*^9},
+ CellLabel->
+  "During evaluation of \
+In[155]:=",ExpressionUUID->"58572c19-702d-4f9e-bbba-221464242846"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "JavaNew", "fail", 
+   "\"Error calling constructor for class \
+\\!\\(\\*RowBox[{\\\"\\\\\\\"java.io.FileOutputStream\\\\\\\"\\\"}]\\).\"", 2,
+    155, 20, 31445476735562244474, "Local", "JLink`JavaNew"},
+  "MessageTemplate2"]], "Message", "MSG",
+ CellChangeTimes->{3.805190631807704*^9, 3.8051906733165765`*^9},
+ CellLabel->
+  "During evaluation of \
+In[155]:=",ExpressionUUID->"87c7fcad-f65c-41f2-92c1-6dee4a5823ab"],
+
+Cell[BoxData[
+ TemplateBox[{
+  "JavaNew", "argx1", 
+   "\"Incorrect number or type of arguments to constructor for class \
+\\!\\(\\*RowBox[{\\\"\\\\\\\"java.util.zip.ZipOutputStream\\\\\\\"\\\"}]\\). \
+The argument was \\!\\(\\*RowBox[{\\\"$Failed\\\"}]\\).\"", 2, 155, 21, 
+   31445476735562244474, "Local", "JLink`JavaNew"},
+  "MessageTemplate2"]], "Message", "MSG",
+ CellChangeTimes->{3.805190631807704*^9, 3.8051906733165765`*^9},
+ CellLabel->
+  "During evaluation of \
+In[155]:=",ExpressionUUID->"e1a64e0f-8430-487d-b651-fd477db3148d"]
+}, Open  ]],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.8051901972667923`*^9, 
+  3.805190200149313*^9}},ExpressionUUID->"e434f079-a6e3-4d6b-a3e0-\
+3d85b4c1cace"],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"site", "=", 
+   RowBox[{"PacletSiteObject", "[", 
+    RowBox[{"\[LeftAssociation]", 
+     RowBox[{
+      RowBox[{
+      "\"\<URL\>\"", "\[Rule]", 
+       "\"\<https://raw.githubusercontent.com/henrik-s-nielsen/wolfram-\
+paclets/master/\>\""}], ",", 
+      RowBox[{"\"\<Name\>\"", "\[Rule]", "\"\<\>\""}], ",", 
+      RowBox[{"\"\<Local\>\"", "\[Rule]", "False"}], ",", 
+      RowBox[{"\"\<Type\>\"", "\[Rule]", "\"\<Server\>\""}]}], 
+     "\[RightAssociation]"}], "]"}]}], ";"}]], "Input",
+ CellChangeTimes->{{3.805190273902108*^9, 3.8051902780372066`*^9}},
+ CellLabel->
+  "In[150]:=",ExpressionUUID->"3c3fa7e2-4afb-4e88-8cb4-a5e553c52474"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"PacletSiteUpdate", "[", "site", "]"}]], "Input",
+ CellChangeTimes->{{3.8051902906979256`*^9, 3.805190306791402*^9}},
+ CellLabel->
+  "In[152]:=",ExpressionUUID->"6888cb4e-c0cc-4b28-ad0d-7a95434b07e1"],
+
+Cell[BoxData[
+ RowBox[{"PacletSiteObject", "[", 
+  RowBox[{"\[LeftAssociation]", 
+   RowBox[{
+    RowBox[{"\<\"URL\"\>", 
+     "\[Rule]", \
+"\<\"https://raw.githubusercontent.com/henrik-s-nielsen/wolfram-paclets/\
+master/\"\>"}], ",", 
+    RowBox[{"\<\"Name\"\>", "\[Rule]", "\<\"\"\>"}], ",", 
+    RowBox[{"\<\"Local\"\>", "\[Rule]", "False"}], ",", 
+    RowBox[{"\<\"Type\"\>", "\[Rule]", "\<\"Server\"\>"}]}], 
+   "\[RightAssociation]"}], "]"}]], "Output",
+ CellChangeTimes->{3.8051903090377417`*^9, 3.8051903717694826`*^9},
+ CellLabel->
+  "Out[152]=",ExpressionUUID->"62b1506b-2d2b-4d43-8af6-95df72d836f5"]
+}, Open  ]]
+},
+WindowSize->{958, 988},
+WindowMargins->{{-7, Automatic}, {Automatic, 0}},
+FrontEndVersion->"12.1 for Microsoft Windows (64-bit) (July 8, 2020)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"35e31e91-e3f8-4aac-9845-fd85e1e564fc"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[583, 22, 299, 6, 28, "Input",ExpressionUUID->"e15eda4b-bec8-44e0-b328-6ed0e0128d17"],
+Cell[885, 30, 302, 5, 32, "Output",ExpressionUUID->"205459f4-bded-4779-a821-79a9ce3bd979"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[1224, 40, 394, 9, 28, "Input",ExpressionUUID->"96bcfbe2-b508-48ba-b534-2d8250892f51"],
+Cell[1621, 51, 1205, 32, 232, "Output",ExpressionUUID->"2b05db15-f965-4a06-a998-7f086b2df961"]
+}, Open  ]],
+Cell[2841, 86, 236, 5, 28, "Input",ExpressionUUID->"cdfb398b-f80b-4d0f-bc58-26d78d615c16"],
+Cell[3080, 93, 576, 13, 28, "Input",ExpressionUUID->"46bf7c47-33bb-4dbb-a2dd-3b7c3217b624"],
+Cell[CellGroupData[{
+Cell[3681, 110, 590, 12, 28, "Input",ExpressionUUID->"203efdef-e2ff-481e-842d-9dc27c1cf92e"],
+Cell[4274, 124, 306, 5, 32, "Output",ExpressionUUID->"96c79c7e-30b8-4bca-acba-a4904f68b15b"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[4617, 134, 522, 11, 28, "Input",ExpressionUUID->"e3ed1482-7a03-4a44-9f94-4ecfbb4056e3"],
+Cell[5142, 147, 593, 12, 21, "Message",ExpressionUUID->"4a73d303-d98d-4647-a840-eaf7ba542c4b"],
+Cell[5738, 161, 419, 9, 21, "Message",ExpressionUUID->"39f654b4-5412-40bf-b1ec-92a53d67a9a7"],
+Cell[6160, 172, 419, 9, 21, "Message",ExpressionUUID->"d62ea4e6-0d2d-40db-b93e-5083581cfd39"],
+Cell[6582, 183, 428, 10, 23, "Message",ExpressionUUID->"727a4c3a-7653-4b9d-b480-9cded432d45c"],
+Cell[7013, 195, 1532, 27, 185, "Message",ExpressionUUID->"4484b58d-a283-4f27-8148-5bb133cc0cac"],
+Cell[8548, 224, 448, 10, 21, "Message",ExpressionUUID->"0989003e-dbeb-4249-a6b5-4f624f554789"],
+Cell[8999, 236, 1542, 28, 185, "Message",ExpressionUUID->"58572c19-702d-4f9e-bbba-221464242846"],
+Cell[10544, 266, 449, 10, 21, "Message",ExpressionUUID->"87c7fcad-f65c-41f2-92c1-6dee4a5823ab"],
+Cell[10996, 278, 540, 11, 21, "Message",ExpressionUUID->"e1a64e0f-8430-487d-b651-fd477db3148d"]
+}, Open  ]],
+Cell[11551, 292, 154, 3, 28, "Input",ExpressionUUID->"e434f079-a6e3-4d6b-a3e0-3d85b4c1cace"],
+Cell[11708, 297, 675, 16, 48, "Input",ExpressionUUID->"3c3fa7e2-4afb-4e88-8cb4-a5e553c52474"],
+Cell[CellGroupData[{
+Cell[12408, 317, 223, 4, 28, "Input",ExpressionUUID->"6888cb4e-c0cc-4b28-ad0d-7a95434b07e1"],
+Cell[12634, 323, 610, 14, 52, "Output",ExpressionUUID->"62b1506b-2d2b-4d43-8af6-95df72d836f5"]
+}, Open  ]]
+}
+]
+*)
+

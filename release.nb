@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       161,          7]
-NotebookDataLength[     15762,        385]
-NotebookOptionsPosition[     13260,        340]
-NotebookOutlinePosition[     13656,        356]
-CellTagsIndexPosition[     13613,        353]
+NotebookDataLength[      8788,        231]
+NotebookOptionsPosition[      7095,        196]
+NotebookOutlinePosition[      7494,        212]
+CellTagsIndexPosition[      7451,        209]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -130,165 +130,17 @@ paclets\\\\Paclets\\\\azure-1.1.paclet\"\>"], "Output",
   "Out[142]=",ExpressionUUID->"96c79c7e-30b8-4bca-acba-a4904f68b15b"]
 }, Open  ]],
 
-Cell[CellGroupData[{
-
 Cell[BoxData[
  RowBox[{"PacletManager`BuildPacletSiteFiles", "[", 
   RowBox[{"FileNameJoin", "[", 
    RowBox[{"{", 
-    RowBox[{
-     RowBox[{"NotebookDirectory", "[", "]"}], ",", "\"\<PacletInfo.wl\>\"", 
-     ",", "\"\<Paclets\>\""}], "}"}], "]"}], "]"}]], "Input",
+    RowBox[{"NotebookDirectory", "[", "]"}], "}"}], "]"}], "]"}]], "Input",
  CellChangeTimes->{{3.8051904138484783`*^9, 3.805190464813696*^9}, {
-  3.8051905168313675`*^9, 3.8051905293172894`*^9}, {3.8051905755321765`*^9, 
-  3.805190630497965*^9}},
+   3.8051905168313675`*^9, 3.8051905293172894`*^9}, {3.8051905755321765`*^9, 
+   3.805190630497965*^9}, {3.8051906954835615`*^9, 3.8051907184081697`*^9}, 
+   3.8051915997654448`*^9},
  CellLabel->
-  "In[155]:=",ExpressionUUID->"e3ed1482-7a03-4a44-9f94-4ecfbb4056e3"],
-
-Cell[BoxData[
- TemplateBox[{
-  "OpenWrite", "noopen", 
-   "\"Cannot open \
-\\!\\(\\*RowBox[{\\\"\\\\\\\"C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\w101849\\\
-\\\\\\\\\\\\\\projects\\\\\\\\\\\\\\\\wolfram\\\\\\\\\\\\\\\\wolfram-paclets\\\
-\\\\\\\\\\\\\\PacletInfo.wl\\\\\\\\\\\\\\\\Paclets\\\\\\\\\\\\\\\\PacletSite.\
-m\\\\\\\"\\\"}]\\).\"", 2, 155, 13, 31445476735562244474, "Local"},
-  "MessageTemplate"]], "Message", "MSG",
- CellChangeTimes->{3.805190631807704*^9, 3.8051906732671556`*^9},
- CellLabel->
-  "During evaluation of \
-In[155]:=",ExpressionUUID->"4a73d303-d98d-4647-a840-eaf7ba542c4b"],
-
-Cell[BoxData[
- TemplateBox[{
-  "WriteString", "strml", 
-   "\"\\!\\(\\*RowBox[{\\\"$Failed\\\"}]\\) is not a string, stream, or list \
-of strings and streams.\"", 2, 155, 14, 31445476735562244474, "Local"},
-  "MessageTemplate"]], "Message", "MSG",
- CellChangeTimes->{3.805190631807704*^9, 3.8051906732827606`*^9},
- CellLabel->
-  "During evaluation of \
-In[155]:=",ExpressionUUID->"39f654b4-5412-40bf-b1ec-92a53d67a9a7"],
-
-Cell[BoxData[
- TemplateBox[{
-  "WriteString", "strml", 
-   "\"\\!\\(\\*RowBox[{\\\"$Failed\\\"}]\\) is not a string, stream, or list \
-of strings and streams.\"", 2, 155, 15, 31445476735562244474, "Local"},
-  "MessageTemplate"]], "Message", "MSG",
- CellChangeTimes->{3.805190631807704*^9, 3.8051906732827606`*^9},
- CellLabel->
-  "During evaluation of \
-In[155]:=",ExpressionUUID->"d62ea4e6-0d2d-40db-b93e-5083581cfd39"],
-
-Cell[BoxData[
- TemplateBox[{
-  "Close", "stream", 
-   "\"\\!\\(\\*RowBox[{\\\"$Failed\\\"}]\\) is not a string, SocketObject, \
-InputStream[ ], or OutputStream[ ].\"", 2, 155, 16, 31445476735562244474, 
-   "Local"},
-  "MessageTemplate"]], "Message", "MSG",
- CellChangeTimes->{3.805190631807704*^9, 3.8051906732827606`*^9},
- CellLabel->
-  "During evaluation of \
-In[155]:=",ExpressionUUID->"727a4c3a-7653-4b9d-b480-9cded432d45c"],
-
-Cell[BoxData[
- TemplateBox[{
-  "Java", "excptn", 
-   "\"A Java exception occurred: \
-\\!\\(\\*RowBox[{\\\"\\\\\\\"java.io.FileNotFoundException: \
-C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\w101849\\\\\\\\\\\\\\\\projects\\\\\\\\\
-\\\\\\\\wolfram\\\\\\\\\\\\\\\\wolfram-paclets\\\\\\\\\\\\\\\\PacletInfo.wl\\\
-\\\\\\\\\\\\\\Paclets\\\\\\\\\\\\\\\\PacletSite.m (The system cannot find the \
-path specified)\\\\\\\\n\\\\\\\\tat \
-java.base/java.io.FileInputStream.open0(Native Method)\\\\\\\\n\\\\\\\\tat \
-java.base/java.io.FileInputStream.open(FileInputStream.java:219)\\\\\\\\n\\\\\
-\\\\tat java.base/java.io.FileInputStream.<init>(FileInputStream.java:157)\\\\\
-\\\\n\\\\\\\\tat \
-java.base/java.io.FileInputStream.<init>(FileInputStream.java:112)\\\\\\\\n\\\
-\\\\\\tat \
-java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(\
-Native Method)\\\\\\\\n\\\\\\\\tat \
-java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(\
-NativeConstructorAccessorImpl.java:62)\\\\\\\\n\\\\\\\\tat \
-java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(\
-DelegatingConstructorAccessorImpl.java:45)\\\\\\\\n\\\\\\\\tat \
-java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:490)\\\\\
-\\\"\\\"}]\\).\"", 2, 155, 17, 31445476735562244474, "Local", "JLink`Java"},
-  "MessageTemplate2"]], "Message", "MSG",
- CellChangeTimes->{3.805190631807704*^9, 3.8051906733009014`*^9},
- CellLabel->
-  "During evaluation of \
-In[155]:=",ExpressionUUID->"4484b58d-a283-4f27-8148-5bb133cc0cac"],
-
-Cell[BoxData[
- TemplateBox[{
-  "JavaNew", "fail", 
-   "\"Error calling constructor for class \
-\\!\\(\\*RowBox[{\\\"\\\\\\\"java.io.FileInputStream\\\\\\\"\\\"}]\\).\"", 2, 
-   155, 18, 31445476735562244474, "Local", "JLink`JavaNew"},
-  "MessageTemplate2"]], "Message", "MSG",
- CellChangeTimes->{3.805190631807704*^9, 3.8051906733009014`*^9},
- CellLabel->
-  "During evaluation of \
-In[155]:=",ExpressionUUID->"0989003e-dbeb-4249-a6b5-4f624f554789"],
-
-Cell[BoxData[
- TemplateBox[{
-  "Java", "excptn", 
-   "\"A Java exception occurred: \
-\\!\\(\\*RowBox[{\\\"\\\\\\\"java.io.FileNotFoundException: \
-C:\\\\\\\\\\\\\\\\Users\\\\\\\\\\\\\\\\w101849\\\\\\\\\\\\\\\\projects\\\\\\\\\
-\\\\\\\\wolfram\\\\\\\\\\\\\\\\wolfram-paclets\\\\\\\\\\\\\\\\PacletInfo.wl\\\
-\\\\\\\\\\\\\\Paclets\\\\\\\\\\\\\\\\PacletSite.mz (The system cannot find \
-the path specified)\\\\\\\\n\\\\\\\\tat \
-java.base/java.io.FileOutputStream.open0(Native Method)\\\\\\\\n\\\\\\\\tat \
-java.base/java.io.FileOutputStream.open(FileOutputStream.java:298)\\\\\\\\n\\\
-\\\\\\tat \
-java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:237)\\\\\\\\n\
-\\\\\\\\tat \
-java.base/java.io.FileOutputStream.<init>(FileOutputStream.java:126)\\\\\\\\n\
-\\\\\\\\tat \
-java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(\
-Native Method)\\\\\\\\n\\\\\\\\tat \
-java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(\
-NativeConstructorAccessorImpl.java:62)\\\\\\\\n\\\\\\\\tat \
-java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(\
-DelegatingConstructorAccessorImpl.java:45)\\\\\\\\n\\\\\\\\tat \
-java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:490)\\\\\
-\\\"\\\"}]\\).\"", 2, 155, 19, 31445476735562244474, "Local", "JLink`Java"},
-  "MessageTemplate2"]], "Message", "MSG",
- CellChangeTimes->{3.805190631807704*^9, 3.8051906733009014`*^9},
- CellLabel->
-  "During evaluation of \
-In[155]:=",ExpressionUUID->"58572c19-702d-4f9e-bbba-221464242846"],
-
-Cell[BoxData[
- TemplateBox[{
-  "JavaNew", "fail", 
-   "\"Error calling constructor for class \
-\\!\\(\\*RowBox[{\\\"\\\\\\\"java.io.FileOutputStream\\\\\\\"\\\"}]\\).\"", 2,
-    155, 20, 31445476735562244474, "Local", "JLink`JavaNew"},
-  "MessageTemplate2"]], "Message", "MSG",
- CellChangeTimes->{3.805190631807704*^9, 3.8051906733165765`*^9},
- CellLabel->
-  "During evaluation of \
-In[155]:=",ExpressionUUID->"87c7fcad-f65c-41f2-92c1-6dee4a5823ab"],
-
-Cell[BoxData[
- TemplateBox[{
-  "JavaNew", "argx1", 
-   "\"Incorrect number or type of arguments to constructor for class \
-\\!\\(\\*RowBox[{\\\"\\\\\\\"java.util.zip.ZipOutputStream\\\\\\\"\\\"}]\\). \
-The argument was \\!\\(\\*RowBox[{\\\"$Failed\\\"}]\\).\"", 2, 155, 21, 
-   31445476735562244474, "Local", "JLink`JavaNew"},
-  "MessageTemplate2"]], "Message", "MSG",
- CellChangeTimes->{3.805190631807704*^9, 3.8051906733165765`*^9},
- CellLabel->
-  "During evaluation of \
-In[155]:=",ExpressionUUID->"e1a64e0f-8430-487d-b651-fd477db3148d"]
-}, Open  ]],
+  "In[158]:=",ExpressionUUID->"e3ed1482-7a03-4a44-9f94-4ecfbb4056e3"],
 
 Cell[BoxData[""], "Input",
  CellChangeTimes->{{3.8051901972667923`*^9, 
@@ -310,16 +162,14 @@ paclets/master/\>\""}], ",",
       RowBox[{"\"\<Type\>\"", "\[Rule]", "\"\<Server\>\""}]}], 
      "\[RightAssociation]"}], "]"}]}], ";"}]], "Input",
  CellChangeTimes->{{3.805190273902108*^9, 3.8051902780372066`*^9}},
- CellLabel->
-  "In[150]:=",ExpressionUUID->"3c3fa7e2-4afb-4e88-8cb4-a5e553c52474"],
+ CellLabel->"In[9]:=",ExpressionUUID->"3c3fa7e2-4afb-4e88-8cb4-a5e553c52474"],
 
 Cell[CellGroupData[{
 
 Cell[BoxData[
  RowBox[{"PacletSiteUpdate", "[", "site", "]"}]], "Input",
  CellChangeTimes->{{3.8051902906979256`*^9, 3.805190306791402*^9}},
- CellLabel->
-  "In[152]:=",ExpressionUUID->"6888cb4e-c0cc-4b28-ad0d-7a95434b07e1"],
+ CellLabel->"In[10]:=",ExpressionUUID->"6888cb4e-c0cc-4b28-ad0d-7a95434b07e1"],
 
 Cell[BoxData[
  RowBox[{"PacletSiteObject", "[", 
@@ -333,13 +183,19 @@ master/\"\>"}], ",",
     RowBox[{"\<\"Local\"\>", "\[Rule]", "False"}], ",", 
     RowBox[{"\<\"Type\"\>", "\[Rule]", "\<\"Server\"\>"}]}], 
    "\[RightAssociation]"}], "]"}]], "Output",
- CellChangeTimes->{3.8051903090377417`*^9, 3.8051903717694826`*^9},
- CellLabel->
-  "Out[152]=",ExpressionUUID->"62b1506b-2d2b-4d43-8af6-95df72d836f5"]
-}, Open  ]]
+ CellChangeTimes->{3.8051903090377417`*^9, 3.8051903717694826`*^9, 
+  3.8051917040848036`*^9, 3.805191897558626*^9},
+ CellLabel->"Out[10]=",ExpressionUUID->"8a8a1ba5-1806-432e-bc91-1a4412381bc8"]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{"PacletSiteUpdate", "[", 
+  RowBox[{"PacletSites", "[", "]"}], "]"}]], "Input",
+ CellChangeTimes->{3.805192008025069*^9},
+ CellLabel->"In[23]:=",ExpressionUUID->"9643dbc2-895d-4911-879e-c4aa0a99118e"]
 },
-WindowSize->{958, 988},
-WindowMargins->{{-7, Automatic}, {Automatic, 0}},
+WindowSize->{862, 981},
+WindowMargins->{{101, Automatic}, {Automatic, 156}},
 FrontEndVersion->"12.1 for Microsoft Windows (64-bit) (July 8, 2020)",
 StyleDefinitions->"Default.nb",
 ExpressionUUID->"35e31e91-e3f8-4aac-9845-fd85e1e564fc"
@@ -369,24 +225,14 @@ Cell[CellGroupData[{
 Cell[3681, 110, 590, 12, 28, "Input",ExpressionUUID->"203efdef-e2ff-481e-842d-9dc27c1cf92e"],
 Cell[4274, 124, 306, 5, 32, "Output",ExpressionUUID->"96c79c7e-30b8-4bca-acba-a4904f68b15b"]
 }, Open  ]],
+Cell[4595, 132, 526, 10, 28, "Input",ExpressionUUID->"e3ed1482-7a03-4a44-9f94-4ecfbb4056e3"],
+Cell[5124, 144, 154, 3, 28, "Input",ExpressionUUID->"e434f079-a6e3-4d6b-a3e0-3d85b4c1cace"],
+Cell[5281, 149, 670, 15, 67, "Input",ExpressionUUID->"3c3fa7e2-4afb-4e88-8cb4-a5e553c52474"],
 Cell[CellGroupData[{
-Cell[4617, 134, 522, 11, 28, "Input",ExpressionUUID->"e3ed1482-7a03-4a44-9f94-4ecfbb4056e3"],
-Cell[5142, 147, 593, 12, 21, "Message",ExpressionUUID->"4a73d303-d98d-4647-a840-eaf7ba542c4b"],
-Cell[5738, 161, 419, 9, 21, "Message",ExpressionUUID->"39f654b4-5412-40bf-b1ec-92a53d67a9a7"],
-Cell[6160, 172, 419, 9, 21, "Message",ExpressionUUID->"d62ea4e6-0d2d-40db-b93e-5083581cfd39"],
-Cell[6582, 183, 428, 10, 23, "Message",ExpressionUUID->"727a4c3a-7653-4b9d-b480-9cded432d45c"],
-Cell[7013, 195, 1532, 27, 185, "Message",ExpressionUUID->"4484b58d-a283-4f27-8148-5bb133cc0cac"],
-Cell[8548, 224, 448, 10, 21, "Message",ExpressionUUID->"0989003e-dbeb-4249-a6b5-4f624f554789"],
-Cell[8999, 236, 1542, 28, 185, "Message",ExpressionUUID->"58572c19-702d-4f9e-bbba-221464242846"],
-Cell[10544, 266, 449, 10, 21, "Message",ExpressionUUID->"87c7fcad-f65c-41f2-92c1-6dee4a5823ab"],
-Cell[10996, 278, 540, 11, 21, "Message",ExpressionUUID->"e1a64e0f-8430-487d-b651-fd477db3148d"]
+Cell[5976, 168, 219, 3, 28, "Input",ExpressionUUID->"6888cb4e-c0cc-4b28-ad0d-7a95434b07e1"],
+Cell[6198, 173, 655, 14, 52, "Output",ExpressionUUID->"8a8a1ba5-1806-432e-bc91-1a4412381bc8"]
 }, Open  ]],
-Cell[11551, 292, 154, 3, 28, "Input",ExpressionUUID->"e434f079-a6e3-4d6b-a3e0-3d85b4c1cace"],
-Cell[11708, 297, 675, 16, 48, "Input",ExpressionUUID->"3c3fa7e2-4afb-4e88-8cb4-a5e553c52474"],
-Cell[CellGroupData[{
-Cell[12408, 317, 223, 4, 28, "Input",ExpressionUUID->"6888cb4e-c0cc-4b28-ad0d-7a95434b07e1"],
-Cell[12634, 323, 610, 14, 52, "Output",ExpressionUUID->"62b1506b-2d2b-4d43-8af6-95df72d836f5"]
-}, Open  ]]
+Cell[6868, 190, 223, 4, 28, "Input",ExpressionUUID->"9643dbc2-895d-4911-879e-c4aa0a99118e"]
 }
 ]
 *)

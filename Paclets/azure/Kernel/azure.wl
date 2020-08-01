@@ -63,27 +63,7 @@ g;
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
-(*Icons*)
-
-
-(* ::Input:: *)
-(**)
-
-
-(* Notebook define azIcons variable *)
-NotebookImport[DirectoryName@FindFile@"azure`"<>"icons.nb","Input"->"Expression"];
-
-icons =  RemoveBackground@Image[#,ImageSize->15]& /@ azIcons;
-
-iconName["devOps.pipeline"] := "devOps.pipeline";
-iconName["devOps.releaseDefinition"] := "devOps.pipeline";
-iconName["devOps.release"] := "devOps.pipeline";
-iconName["devOps.repository"] := "devOps.repository";
-iconName[type_] := "devOps.default";
-
-
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
@@ -133,6 +113,53 @@ azureIdToAzRef[id_String] :=
 		rest:((Except["?"] | Except[EndOfString])..) :> {
 			provider,subscription,resourceGrp,rest }, IgnoreCase->True] /. {v_} :> azureId2azRef@v;
 
+
+azOpenUi[url_String] := Module[{},
+	Sow[url];
+	SystemOpen[url];
+];
+azOpenUi[KeyValuePattern["azRef" -> ref_]] := azOpenUi@ref;
+azOpenUi[ds_Dataset] := azOpenUi@Normal@ds;
+
+
+(* ::Section::Closed:: *)
+(*azRef panel*)
+
+
+(* ::Input:: *)
+(**)
+
+
+(* Notebook define azIcons variable *)
+NotebookImport[DirectoryName@FindFile@"azure`"<>"icons.nb","Input"->"Expression"];
+
+icons =  RemoveBackground@Image[#,ImageSize->15]& /@ azIcons;
+
+icon[azRef[KeyValuePattern["azType" -> _]]] := icons["devOps.default"];
+refLabel[azRef[KeyValuePattern["azType" -> _]]] := "???";
+
+azRef /: MakeBoxes[obj:azRef[ref_Association], fmt_] :=
+Block[{type, bg, display},
+	bg = Lighter[Blue, 0.9];
+	type = Last@StringSplit[ref["azType"],"."];
+	display = Tooltip[
+		Framed[
+			Row[{icon[obj]," ",Style[type, Italic], ": ", Style[refLabel[obj],Bold]}],
+			Background -> bg,
+			BaselinePosition -> Baseline,
+			BaseStyle -> "Panel",
+			FrameMargins -> {{5,5},{3,3}},
+			FrameStyle -> GrayLevel[0.8],
+			RoundingRadius -> 5
+		],
+		Grid[KeyValueMap[{Style[#1,Bold],#2}&,ref],Alignment->Left]
+	];
+	
+	(* should probably recast this as a TemplateBox eventually *)
+	With[{boxes = ToBoxes[display, fmt]},
+		InterpretationBox[boxes, obj]
+	]
+]
 
 
 (* ::Section::Closed:: *)
@@ -359,39 +386,6 @@ azEventHubs[authorizationHeader_String, azRef[ref:KeyValuePattern[{
 (*Common*)
 
 
-refLabel[ref_Association] := Switch[ref["azType"],
-	"devOps.project", ref["projectName"],
-	"devOps.repository", ref["repositoryName"],
-	"devOps.pipeline", ref["pipelineName"],
-	"devOps.releaseDefinition", ref["definitionName"],
-	"devOps.release", ref["releaseDefinition"] <> "/" <> ToString@ref["releaseId"],
-	_, "???"
-];
-
-azRef /: MakeBoxes[obj:azRef[ref_Association], fmt_] :=
-Block[{type, bg, display},
-	bg = Lighter[Blue, 0.9];
-	type = Last@StringSplit[ref["azType"],"."];
-	display = Tooltip[
-		Framed[
-			Row[{icons[iconName@ref["azType"]]," ",Style[type, Italic], ": ", Style[refLabel@ref,Bold]}],
-			Background -> bg,
-			BaselinePosition -> Baseline,
-			BaseStyle -> "Panel",
-			FrameMargins -> {{5,5},{3,3}},
-			FrameStyle -> GrayLevel[0.8],
-			RoundingRadius -> 5
-		],
-		Grid[KeyValueMap[{Style[#1,Bold],#2}&,ref],Alignment->Left]
-	];
-	
-	(* should probably recast this as a TemplateBox eventually *)
-	With[{boxes = ToBoxes[display, fmt]},
-		InterpretationBox[boxes, obj]
-	]
-]
-
-
 azRefDevOpsPattern[azType_String] := azRefDevOpsPattern[azType, <||>];
 azRefDevOpsPattern[azType_String,asc_Association] := With[
 	{inner = <|
@@ -407,6 +401,15 @@ azRefDevOpsPattern[azType_String,asc_Association] := With[
 (* ::Subsection::Closed:: *)
 (*Projects*)
 
+
+refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.project"]]] := ref["projectName"];
+icon[azRef[KeyValuePattern["azType" -> "devOps.release"]]] := icons["devOps.project"];
+
+azOpenUi[azRefDevOpsPattern["devOps.project"]] := Module[{url},
+	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`"]
+		[URLEncode /@ ref];
+	azOpenUi[url];
+];
 
 azDevOpsProjects[args___] := azDevOpsProjectList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azDevOpsProjectList[authorizationHeader_String, azRef[ref:KeyValuePattern[{
@@ -425,6 +428,15 @@ azDevOpsProjectList[authorizationHeader_String, azRef[ref:KeyValuePattern[{
 (*Git*)
 
 
+refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.repository"]]] := ref["repositoryName"];
+icon[azRef[KeyValuePattern["azType" -> "devOps.repository"]]] := icons["devOps.repository"];
+
+azOpenUi[azRefDevOpsPattern["devOps.repository"]] := Module[{url},
+	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_git/`repositoryName`"]
+		[URLEncode /@ ref];
+	azOpenUi[url];
+];
+
 azDevOpsGitRepositories[args___] := azDevOpsGitRepositoryList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] := 
 	azHttpGet[authorizationHeader, 
@@ -437,9 +449,23 @@ azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps
 			|>], #|> &]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Pipelines*)
 
+
+(* ::Subsubsection::Closed:: *)
+(*Pipeline*)
+
+
+refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.pipeline"]]] := ref["pipelineName"];
+icon[azRef[KeyValuePattern["azType" -> "devOps.pipeline"]]] := icons["devOps.pipeline"];
+
+
+azOpenUi[azRefDevOpsPattern["devOps.pipeline", <|"pipelineId" -> _Integer|>]] := Module[{url},
+	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_build?definitionId=`pipelineId`"]
+		[URLEncode /@ ref];
+	azOpenUi[url];
+];
 
 azDevOpsPipelines[args___] := azDevOpsPipelineList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azDevOpsPipelineList[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] :=
@@ -449,9 +475,23 @@ azDevOpsPipelineList[authorizationHeader_String, azRefDevOpsPattern["devOps.proj
 				"azType" -> "devOps.pipeline",
 				"organizationName" -> organizationName,
 				"projectName" -> projectName,
-				"pipelineName" -> #name		
+				"pipelineName" -> #name,
+				"pipelineId" -> #id
 			|>], #|> &]
 
+
+(* ::Subsubsection::Closed:: *)
+(*Release definition*)
+
+
+refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.releaseDefinition"]]] := ref["definitionName"];
+icon[azRef[KeyValuePattern["azType" -> "devOps.releaseDefinition"]]] := icons["devOps.pipeline"];
+
+azOpenUi[azRefDevOpsPattern["devOps.releaseDefinition", <|"definitionId" -> _Integer|>]] := Module[{url},
+	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_release?definitionId=`definitionId`"]
+		[URLEncode /@ ref];
+	azOpenUi[url];
+];
 
 azDevOpsReleaseDefinitions[args___] := azDevOpsReleaseDefinitionList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azDevOpsReleaseDefinitionList[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] :=
@@ -466,12 +506,17 @@ azDevOpsReleaseDefinitionList[authorizationHeader_String, azRefDevOpsPattern["de
 			|>], #|> &]
 
 
+(* ::Subsubsection::Closed:: *)
+(*Release*)
+
+
+refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.release"]]] := ref["releaseDefinition"] <> "/" <> ToString@ref["releaseId"];
+icon[azRef[KeyValuePattern["azType" -> "devOps.release"]]] := icons["devOps.pipeline"];
 
 azOpenUi[azRefDevOpsPattern["devOps.release", <|"releaseId" -> releaseId_|>]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_release?releaseId=`releaseId`&_a=release-summary"]
 		[URLEncode /@ ref];
-	Sow[url];
-	SystemOpen[url];
+	azOpenUi[url];
 ];
 
 azInfo[authorizationHeader_String, azRefDevOpsPattern["devOps.release", <|"releaseId" -> releaseId_|>]] := 

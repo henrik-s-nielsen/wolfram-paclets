@@ -411,6 +411,11 @@ azOpenUi[azRefDevOpsPattern["devOps.project"]] := Module[{url},
 	azOpenUi[url];
 ];
 
+azInfo[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] := 
+	azHttpGet[authorizationHeader,
+		StringTemplate["https://dev.azure.com/`organizationName`/_apis/projects/`projectName`?api-version=6.0-preview.4"][URLEncode/@ref]
+	] /. ds_Dataset :> ds[<| "azRef" -> azRef@ref, # |>&];
+
 azDevOpsProjects[args___] := azDevOpsProjectList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azDevOpsProjectList[authorizationHeader_String, azRef[ref:KeyValuePattern[{
 	"organizationName" -> organization_String
@@ -437,6 +442,11 @@ azOpenUi[azRefDevOpsPattern["devOps.repository"]] := Module[{url},
 	azOpenUi[url];
 ];
 
+azInfo[authorizationHeader_String, azRefDevOpsPattern["devOps.repository", <|"repositoryName" -> _String|>]] := 
+	azHttpGet[authorizationHeader,
+		StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_apis/git/repositories/`repositoryId`?api-version=6.0-preview.1"][URLEncode/@ref]
+	] /. ds_Dataset :> ds[<| "azRef" -> azRef@ref, # |>&];
+
 azDevOpsGitRepositories[args___] := azDevOpsGitRepositoryList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] := 
 	azHttpGet[authorizationHeader, 
@@ -445,11 +455,12 @@ azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps
 				"azType" -> "devOps.repository",
 				"organizationName" -> organizationName,
 				"projectName" -> projectName,
-				"repositoryName" -> #name		
+				"repositoryName" -> #name,
+				"repositoryId" -> #id		
 			|>], #|> &]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Pipelines*)
 
 
@@ -460,12 +471,16 @@ azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps
 refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.pipeline"]]] := ref["pipelineName"];
 icon[azRef[KeyValuePattern["azType" -> "devOps.pipeline"]]] := icons["devOps.pipeline"];
 
-
 azOpenUi[azRefDevOpsPattern["devOps.pipeline", <|"pipelineId" -> _Integer|>]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_build?definitionId=`pipelineId`"]
 		[URLEncode /@ ref];
 	azOpenUi[url];
 ];
+
+azInfo[authorizationHeader_String, azRefDevOpsPattern["devOps.pipeline", <|"pipelineId" -> _Integer|>]] := 
+	azHttpGet[authorizationHeader,
+		StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_apis/pipelines/`pipelineId`?api-version=6.0-preview.1"][URLEncode/@ref]
+	] /. ds_Dataset :> ds[<| "azRef" -> azRef@ref, # |>&];
 
 azDevOpsPipelines[args___] := azDevOpsPipelineList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azDevOpsPipelineList[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] :=
@@ -492,6 +507,11 @@ azOpenUi[azRefDevOpsPattern["devOps.releaseDefinition", <|"definitionId" -> _Int
 		[URLEncode /@ ref];
 	azOpenUi[url];
 ];
+
+azInfo[authorizationHeader_String, azRefDevOpsPattern["devOps.releaseDefinition", <|"definitionId" -> _Integer|>]] := 
+	azHttpGet[authorizationHeader,
+		StringTemplate["https://vsrm.dev.azure.com/`organizationName`/`projectName`/_apis/release/definitions/`definitionId`?api-version=6.0-preview.4"][URLEncode/@ref]
+	] /. ds_Dataset :> ds[<| "azRef" -> azRef@ref, # |>&];
 
 azDevOpsReleaseDefinitions[args___] := azDevOpsReleaseDefinitionList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azDevOpsReleaseDefinitionList[authorizationHeader_String, azRefDevOpsPattern["devOps.project"]] :=

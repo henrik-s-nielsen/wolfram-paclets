@@ -13,21 +13,24 @@ BeginPackage["azure`"];
 
 (* Base *)
 $azExe;
-azLogin;
+azShellLogin;
 azHttpGet;
 azHttpPost;
 azHttpPatch;
-azGetToken;
+azShellGetToken;
 azRef;
-azGetSubscriptions;
 azParseRefFromId;
 azInfo;
 azOpenUi;
+
+azShellGetSubscriptions;
+azShellGetSubscriptionList;
 
 (* Log analytics *)
 azLogAnalyticsQuery;
 azLogAnalyticsWorkspaceMetadata;
 azLogAnalyticsWorkspaces;
+azLogAnalyticsWorkspaceList;
 (* Log analytics - kubernetes*)
 azLogAnalyticsKubeContainerShortNames;
 azLogAnalyticsKubeContainerIdToShortName;
@@ -59,7 +62,8 @@ azDevOpsReleaseList;
 
 (* temp *)
 azRefDevOpsPattern;
-g;
+azRefAzurePattern;
+getIdKeyValue;
 
 
 Begin["`Private`"];
@@ -69,18 +73,16 @@ Begin["`Private`"];
 (*Base*)
 
 
-azLogin[] := RunProcess[{$azExe,"login"}] /. KeyValuePattern["ExitCode"->0] -> Null;
+azShellLogin[] := RunProcess[{$azExe,"login"}] /. KeyValuePattern["ExitCode"->0] -> Null;
 
 $azExe = "C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd";
 
 azParseRestResponde[res_HTTPResponse] := 
 	res /. r:HTTPResponse[_,KeyValuePattern[{"StatusCode"->200}],___]:>Dataset@ImportByteArray[r["BodyByteArray"],"RawJSON"]
 
-azGetSubscriptions[] := RunProcess[{$azExe ,"account","list"}] /.
-	KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_}] :> 
-		Dataset[ImportByteArray[StringToByteArray@std,"RawJSON"]][All, <| "azRef" -> azRef[<|"subscriptionId" -> #id|>], # |> &]
+
 		
-azGetToken[subscriptionId_String] := RunProcess[{$azExe, "account", "get-access-token"}] /.
+azShellGetToken[subscriptionId_String] := RunProcess[{$azExe, "account", "get-access-token"}] /.
 	KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_,"--subscription" ->subscriptionId }] :> 
 		ImportString[std,"RawJSON"] /. KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_}] :> 
 			Module[{a},a=ImportByteArray[StringToByteArray@std,"RawJSON"];a["expiresOn"]=DateObject[a["expiresOn"]];a]
@@ -135,13 +137,22 @@ azHttpPatch[authorizationHeader_String,  url_String, data_Association] := Module
 	azParseRestResponde@res
 ]
 
-azureIdToAzRef[id_String] := 
-	StringCases[id, 
-		"subscriptions/" ~~ subscription:(Except["/"]..) ~~
-		"/resourceGroups/" ~~ resourceGrp:(Except["/"]..) ~~ 
-		"/providers/" ~~ provider:(Except["/"]..)~~"/" ~~ 
-		rest:((Except["?"] | Except[EndOfString])..) :> {
-			provider,subscription,resourceGrp,rest }, IgnoreCase->True] /. {v_} :> azureId2azRef@v;
+getIdKeyValue[id_String, idKey_String, outKey_String] := StringCases[
+	id,
+	idKey~~"/"~~keyval:(Except["/"]..):>(keyval /. {{}:>Nothing, v_:>( outKey->v) }),
+	IgnoreCase->False
+]/. {v_} :> v
+
+
+azRefAzurePattern[azType_String] := azRefAzurePattern[azType, <||>];
+azRefAzurePattern[azType_String,asc_Association] := With[
+	{inner = <|
+		"azType"->azType,
+		"subscriptionId"-> subscriptionId_String,
+		asc
+	|>},
+	refObj:azRef[ref:KeyValuePattern@Normal@inner]
+]
 
 
 azOpenUi[url_String] := Module[{},
@@ -152,7 +163,7 @@ azOpenUi[KeyValuePattern["azRef" -> ref_]] := azOpenUi@ref;
 azOpenUi[ds_Dataset] := azOpenUi@Normal@ds;
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*azRef panel*)
 
 
@@ -165,21 +176,28 @@ NotebookImport[DirectoryName@FindFile@"azure`"<>"icons.nb","Input"->"Expression"
 
 icons =  RemoveBackground@Image[#,ImageSize->15]& /@ azIcons;
 
-icon[_] := icons["devOps.default"];
-icon[azRef[KeyValuePattern["azType" -> _]]] := icons["devOps.default"];
-refLabel[azRef[KeyValuePattern["azType" -> _]]] := "???";
+icon[KeyValuePattern["azType" -> t_]] := Which[
+	StringContainsQ[t, "devOps."], icons["devOps.default"],
+	True, icons["azure.default"]
+];
+refLabel[KeyValuePattern["azType" -> _]] := "???";
+refLabel[_] := "???";
+refColor[KeyValuePattern["azType" -> t_]] := Which[
+	StringContainsQ[t, "devOps."], Lighter[Green, 0.9],
+	True, Lighter[Blue, 0.9]
+];
 
 azRefType[KeyValuePattern["azType"->type_String]] := Last@StringSplit[type,"."] /; 
 	StringContainsQ[type,"."];
-azRefType[_] := "unkown type?!?";
+azRefType[_] := "unkown type";
 
 azRef /: MakeBoxes[obj:azRef[ref_Association], fmt_] :=
 Block[{type, bg, display},
-	bg = Lighter[Blue, 0.9];
+	bg = refColor[ref];
 	type =  azRefType[ref];
 	display = Tooltip[
 		Framed[
-			Row[{icon[obj]," ",Style[type, Italic], ": ", Style[refLabel[obj],Bold]}],
+			Row[{icon[ref]," ",Style[type, Italic], ": ", Style[refLabel[ref],Bold]}],
 			Background -> bg,
 			BaselinePosition -> Baseline,
 			BaseStyle -> "Panel",
@@ -197,7 +215,32 @@ Block[{type, bg, display},
 ]
 
 
-(* ::Section::Closed:: *)
+
+(* ::Section:: *)
+(*Subscriptions*)
+
+
+refLabel[ref:KeyValuePattern["azType" -> "azure.subscription"]] := ref["subscriptionName"];
+icon[KeyValuePattern["azType" -> "azure.subscription"]] := icons["azure.subscription"];
+
+azOpenUi[azRefAzurePattern["azure.subscription"]] := Module[{url},
+	url = StringTemplate["https://portal.azure.com/#@santander.onmicrosoft.com/resource/subscriptions/`subscriptionId`/overview"]
+		[URLEncode /@ ref];
+	azOpenUi[url];
+];
+
+azShellGetSubscriptions[args___] := azShellGetSubscriptionList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
+azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
+	KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_}] :> 
+		Dataset[ImportByteArray[StringToByteArray@std,"RawJSON"]][
+			All, <| "azRef" -> azRef[<|
+				"azType" -> "azure.subscription",
+				"subscriptionName" -> #["name"],
+				"subscriptionId" -> #["id"]
+			|>], # |> &]
+
+
+(* ::Section:: *)
 (*Log analytics*)
 
 
@@ -208,20 +251,40 @@ Block[{type, bg, display},
 
 
 (* ::Subsection:: *)
-(*List workspaces*)
+(*Workspaces*)
 
 
-azLogAnalyticsWorkspaces[
+refLabel[ref:KeyValuePattern["azType" -> "azure.logAnalyticsWorkspace"]] := ref["workspaceName"];
+icon[KeyValuePattern["azType" -> "azure.logAnalyticsWorkspace"]] := icons["azure.logAnalyticsWorkspace"];
+
+azOpenUi[azRefAzurePattern["azure.logAnalyticsWorkspace"]] := Module[{url},
+	url = StringTemplate["https://portal.azure.com/#@santander.onmicrosoft.com/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`"]
+		[URLEncode /@ ref];
+	azOpenUi[url];
+];
+
+azInfo[authorizationHeader_String, azRefAzurePattern["azure.logAnalyticsWorkspace", <||>]] := 
+	azHttpGet[authorizationHeader,
+		StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`?api-version=2020-03-01-preview"][URLEncode/@ref]
+	] /. ds_Dataset :> ds [<| "azRef" -> azRef@ref, # |>&];
+
+azLogAnalyticsWorkspaces[args___] := azLogAnalyticsWorkspaceList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
+azLogAnalyticsWorkspaceList[
 	authorizationHeader_String,
 	azRef[ref:KeyValuePattern[{
 		"subscriptionId" -> _String}]]
 ] := azHttpGet[
 	authorizationHeader, 
-	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.OperationalInsights/workspaces?api-version=2020-03-01-preview"][ref]] /.
-		ds_Dataset :> ds["value", All, <|"azRef"-> azRef[<|"resourceName" -> #name, azParseRefFromId[#id] |>], #|> &]
+	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.OperationalInsights/workspaces?api-version=2020-03-01-preview"][ref]]  /.
+		ds_Dataset :> ds["value", All, <|"azRef"-> azRef[<|
+			"azType" -> "azure.logAnalyticsWorkspace",
+			getIdKeyValue[#["id"], "subscriptions", "subscriptionId"],
+			getIdKeyValue[#["id"], "resourcegroups", "resourceGroupName"],
+			"workspaceName" -> #["name"] 
+		|>], #|> &] 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Meta data*)
 
 
@@ -242,7 +305,7 @@ azLogAnalyticsWorkspaceMetadata[
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Query*)
 
 
@@ -293,7 +356,7 @@ logAnalyticTable[columns_List,rows_List] := logAnalyticRow[columns,#]& /@ rows;
 logAnalyticDS[ds_Dataset] := #TableName->logAnalyticTable[#Columns,#Rows]&/@ Normal[ds["Tables"]] // Association // Dataset;
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*kubernetes*)
 
 
@@ -304,6 +367,10 @@ azLogAnalyticsKubeContainerShortNames[auth_,ref_] :=
 
 azLogAnalyticsKubeContainerIds[auth_,ref_, containerNameFilter_String] := 
 	azLogAnalyticsQuery[auth, ref, StringTemplate["KubePodInventory | where ContainerName has '``' | distinct ContainerID"][containerNameFilter]] /.
+		ds_Dataset :> (Normal[ds["Table_0",All,"ContainerID"]] /. "" -> Nothing);
+		
+azLogAnalyticsKubeContainerIds[auth_,ref_] := 
+	azLogAnalyticsQuery[auth, ref, StringTemplate["KubePodInventory  | distinct ContainerID"][containerNameFilter]] /.
 		ds_Dataset :> (Normal[ds["Table_0",All,"ContainerID"]] /. "" -> Nothing)
 
 
@@ -433,12 +500,12 @@ azRefDevOpsPattern[azType_String,asc_Association] := With[
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Projects*)
 
 
-refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.project"]]] := ref["projectName"];
-icon[azRef[KeyValuePattern["azType" -> "devOps.release"]]] := icons["devOps.project"];
+refLabel[ref:KeyValuePattern["azType" -> "devOps.project"]] := ref["projectName"];
+icon[KeyValuePattern["azType" -> "devOps.release"]] := icons["devOps.project"];
 
 azOpenUi[azRefDevOpsPattern["devOps.project"]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`"]
@@ -468,8 +535,8 @@ azDevOpsProjectList[authorizationHeader_String, azRef[ref:KeyValuePattern[{
 (*Git*)
 
 
-refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.repository"]]] := ref["repositoryName"];
-icon[azRef[KeyValuePattern["azType" -> "devOps.repository"]]] := icons["devOps.repository"];
+refLabel[ref:KeyValuePattern["azType" -> "devOps.repository"]] := ref["repositoryName"];
+icon[KeyValuePattern["azType" -> "devOps.repository"]] := icons["devOps.repository"];
 
 azOpenUi[azRefDevOpsPattern["devOps.repository"]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_git/`repositoryName`"]
@@ -499,12 +566,12 @@ azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps
 (*Pipelines*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Pipeline*)
 
 
-refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.pipeline"]]] := ref["pipelineName"];
-icon[azRef[KeyValuePattern["azType" -> "devOps.pipeline"]]] := icons["devOps.pipeline"];
+refLabel[ref:KeyValuePattern["azType" -> "devOps.pipeline"]] := ref["pipelineName"];
+icon[KeyValuePattern["azType" -> "devOps.pipeline"]] := icons["devOps.pipeline"];
 
 azOpenUi[azRefDevOpsPattern["devOps.pipeline", <|"pipelineId" -> _Integer|>]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_build?definitionId=`pipelineId`"]
@@ -530,12 +597,12 @@ azDevOpsPipelineList[authorizationHeader_String, azRefDevOpsPattern["devOps.proj
 			|>], #|> &]
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Release definition*)
 
 
-refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.releaseDefinition"]]] := ref["definitionName"];
-icon[azRef[KeyValuePattern["azType" -> "devOps.releaseDefinition"]]] := icons["devOps.pipeline"];
+refLabel[ref:KeyValuePattern["azType" -> "devOps.releaseDefinition"]] := ref["definitionName"];
+icon[KeyValuePattern["azType" -> "devOps.releaseDefinition"]] := icons["devOps.pipeline"];
 
 azOpenUi[azRefDevOpsPattern["devOps.releaseDefinition", <|"definitionId" -> _Integer|>]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_release?definitionId=`definitionId`"]
@@ -561,12 +628,12 @@ azDevOpsReleaseDefinitionList[authorizationHeader_String, azRefDevOpsPattern["de
 			|>], #|> &]
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Release*)
 
 
-refLabel[azRef[ref:KeyValuePattern["azType" -> "devOps.release"]]] := ref["releaseDefinition"] <> "/" <> ToString@ref["releaseId"];
-icon[azRef[KeyValuePattern["azType" -> "devOps.release"]]] := icons["devOps.pipeline"];
+refLabel[ref:KeyValuePattern["azType" -> "devOps.release"]] := ref["releaseDefinition"] <> "/" <> ToString@ref["releaseId"];
+icon[KeyValuePattern["azType" -> "devOps.release"]] := icons["devOps.pipeline"];
 
 azOpenUi[azRefDevOpsPattern["devOps.release", <|"releaseId" -> releaseId_|>]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_release?releaseId=`releaseId`&_a=release-summary"]

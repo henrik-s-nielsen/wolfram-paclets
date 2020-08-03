@@ -4,7 +4,7 @@
 (*Azure*)
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Header*)
 
 
@@ -15,6 +15,8 @@ BeginPackage["azure`"];
 $azExe;
 azLogin;
 azHttpGet;
+azHttpPost;
+azHttpPatch;
 azGetToken;
 azRef;
 azGetSubscriptions;
@@ -105,6 +107,34 @@ azHttpGet[authorizationHeader_String,  url_String] := Module[
 	azParseRestResponde@res
 ]
 
+azHttpPost[authorizationHeader_String,  url_String, data_Association] := Module[
+	{req, res},
+	req = HTTPRequest[url, <|
+		Method -> "POST",
+		"ContentType" -> "application/json",
+		"Headers" -> {"Authorization" -> authorizationHeader},
+		"Body" -> ExportString[data,"RawJSON"]
+	|>];
+	Sow[req];
+	res = URLRead@req;
+	Sow[res];
+	azParseRestResponde@res
+]
+
+azHttpPatch[authorizationHeader_String,  url_String, data_Association] := Module[
+	{req, res},
+	req = HTTPRequest[url, <|
+		Method -> "PATCH",
+		"ContentType" -> "application/json",
+		"Headers" -> {"Authorization" -> authorizationHeader},
+		"Body" -> ExportString[data,"RawJSON"]
+	|>];
+	Sow[req];
+	res = URLRead@req;
+	Sow[res];
+	azParseRestResponde@res
+]
+
 azureIdToAzRef[id_String] := 
 	StringCases[id, 
 		"subscriptions/" ~~ subscription:(Except["/"]..) ~~
@@ -122,7 +152,7 @@ azOpenUi[KeyValuePattern["azRef" -> ref_]] := azOpenUi@ref;
 azOpenUi[ds_Dataset] := azOpenUi@Normal@ds;
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*azRef panel*)
 
 
@@ -135,13 +165,18 @@ NotebookImport[DirectoryName@FindFile@"azure`"<>"icons.nb","Input"->"Expression"
 
 icons =  RemoveBackground@Image[#,ImageSize->15]& /@ azIcons;
 
+icon[_] := icons["devOps.default"];
 icon[azRef[KeyValuePattern["azType" -> _]]] := icons["devOps.default"];
 refLabel[azRef[KeyValuePattern["azType" -> _]]] := "???";
+
+azRefType[KeyValuePattern["azType"->type_String]] := Last@StringSplit[type,"."] /; 
+	StringContainsQ[type,"."];
+azRefType[_] := "unkown type?!?";
 
 azRef /: MakeBoxes[obj:azRef[ref_Association], fmt_] :=
 Block[{type, bg, display},
 	bg = Lighter[Blue, 0.9];
-	type = Last@StringSplit[ref["azType"],"."];
+	type =  azRefType[ref];
 	display = Tooltip[
 		Framed[
 			Row[{icon[obj]," ",Style[type, Italic], ": ", Style[refLabel[obj],Bold]}],
@@ -425,7 +460,7 @@ azDevOpsProjectList[authorizationHeader_String, azRef[ref:KeyValuePattern[{
 			ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|
 				"azType" -> "devOps.project",
 				"organizationName" -> organization,
-				"projectName" -> #name
+				"projectName" -> #["name"]
 			|>], #|> &]
 
 
@@ -455,8 +490,8 @@ azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps
 				"azType" -> "devOps.repository",
 				"organizationName" -> organizationName,
 				"projectName" -> projectName,
-				"repositoryName" -> #name,
-				"repositoryId" -> #id		
+				"repositoryName" -> #["name"],
+				"repositoryId" -> #["id"]		
 			|>], #|> &]
 
 
@@ -464,7 +499,7 @@ azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps
 (*Pipelines*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Pipeline*)
 
 
@@ -490,12 +525,12 @@ azDevOpsPipelineList[authorizationHeader_String, azRefDevOpsPattern["devOps.proj
 				"azType" -> "devOps.pipeline",
 				"organizationName" -> organizationName,
 				"projectName" -> projectName,
-				"pipelineName" -> #name,
-				"pipelineId" -> #id
+				"pipelineName" -> #["name"],
+				"pipelineId" -> #["id"]
 			|>], #|> &]
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Release definition*)
 
 
@@ -521,12 +556,12 @@ azDevOpsReleaseDefinitionList[authorizationHeader_String, azRefDevOpsPattern["de
 				"azType" -> "devOps.releaseDefinition",
 				"organizationName" -> organizationName,
 				"projectName" -> projectName,
-				"definitionName" -> #name,
-				"definitionId" -> #id		
+				"definitionName" -> #["name"],
+				"definitionId" -> #["id"]		
 			|>], #|> &]
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Release*)
 
 
@@ -555,8 +590,8 @@ azDevOpsReleaseList[
 				"azType" -> "devOps.release",
 				"organizationName" -> organizationName,
 				"projectName" -> projectName,
-				"releaseId" -> #id,
-				"releaseDefinition" -> #releaseDefinition["name"]
+				"releaseId" -> #["id"],
+				"releaseDefinition" -> #["releaseDefinition","name"]
 			|>], #|> &]
 
 

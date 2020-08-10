@@ -4,7 +4,7 @@
 (*Azure*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Header*)
 
 
@@ -23,6 +23,11 @@ azRef;
 azParseRefFromId;
 azInfo;
 azOpenUi;
+azRefToId;
+azOperations;
+
+azSetUiPortalPrefix;
+azGetUiPortalPrefix
 
 azShellGetSubscriptions;
 azShellGetSubscriptionList;
@@ -49,7 +54,7 @@ azLogAnalyticsKubeSearchContainerLogs;
 (* API manager *)
 azApiManagementServices;
 azApiManagementServiceList;
-azApimLoggers;
+azApiManagementServiceLoggers;
 
 (* Event Hubs *)
 azEventHubs;
@@ -75,20 +80,26 @@ azDevOpsReleaseList;
 azRefDevOpsPattern;
 azRefAzurePattern;
 getIdKeyValue;
+keyValuesFromId;
+refLabel;
 
 
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
+
+
+azSetUiPortalPrefix[prefix_String] := LocalSymbol["azUiPrefix"] = prefix;
+azGetUiPortalPrefix[] := LocalSymbol["azUiPrefix"];
 
 
 azShellLogin[] := RunProcess[{$azExe,"login"}] /. KeyValuePattern["ExitCode"->0] -> Null;
 
 $azExe = "C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd";
 
-azParseRestResponde[res_HTTPResponse] := 
+azParseRestResponde[res_] := 
 	res /. r:HTTPResponse[_,KeyValuePattern[{"StatusCode"->200}],___] :> Dataset@ImportByteArray[r["BodyByteArray"],"RawJSON"]
 
 
@@ -110,7 +121,7 @@ azParseRefFromId[id_String] := StringCases[ToLowerCase@id,
 	<| "subscriptionId" -> subscription , "resourceGroupName" -> resourcegroups |>
 ] /. {v_} :> v;
 
-azHttpGetPaged[auth_ ,args___] := azHttpGet[auth, args] // Dataset@pageData[auth, #] & 
+azHttpGetPaged[auth_ ,args___] := azHttpGet[auth, args] // (pageData[auth, #] /. l_List :> Dataset@l) & 
 azHttpGet[authorizationHeader_String,  url_String] := Module[
 	{req, res},
 	req = HTTPRequest[url, <|
@@ -154,10 +165,21 @@ azHttpPatch[authorizationHeader_String,  url_String, data_Association] := Module
 
 getIdKeyValue[id_String, idKey_String, outKey_String] := StringCases[
 	id,
-	idKey~~"/"~~keyval:(Except["/"]..):>(keyval /. {{}:>Nothing, v_:>( outKey->v) }),
+	idKey~~keyval:(Except["/"]..):>(keyval /. {{}:>Nothing, v_:>( outKey->v) }),
 	IgnoreCase->True
 ]/. {v_} :> v
 
+keyValuesFromId[id_String, idTemplate_String] :=
+	getIdKeyValue[id, #[[1]],#[[2]]]& /@ 
+		(StringTemplate[idTemplate] /. 
+			TemplateObject[l_List,___] :> l //
+			 SequenceCases[#,{p_,TemplateSlot[k_]}:> {p,k}]&
+		) /. l_List :> Association@l; 
+		
+refValues[ref:azRef[refData_Association]] := 
+	Append[URLEncode /@ refData, "id" -> azRefToId[ref]];
+		
+pageData[auth_String, r_HTTPResponse] := r;
 pageData[auth_String, ds_Dataset] := pageData[auth, Normal@ds];
 pageData[auth_String,data_Association] := (
 	PrintTemporary[StringTemplate["Paging: ``"][Length@data["value"]]];
@@ -174,11 +196,12 @@ azRefAzurePattern[azType_String,asc_Association] := With[
 		"subscriptionId"-> subscriptionId_String,
 		asc
 	|>},
-	refObj:azRef[ref:KeyValuePattern@Normal@inner]
+	ref:azRef[refData:KeyValuePattern@Normal@inner]
 ]
 
 
-azOpenUi[url_String] := Module[{},
+azOpenUi[path_String] := Module[{url},
+	url = StringTemplate["https://portal.azure.com/``.onmicrosoft.com``"][azGetUiPortalPrefix[],path];
 	Sow[url];
 	SystemOpen[url];
 ];
@@ -186,7 +209,46 @@ azOpenUi[KeyValuePattern["azRef" -> ref_]] := azOpenUi@ref;
 azOpenUi[ds_Dataset] := azOpenUi@Normal@ds;
 
 
-(* ::Section::Closed:: *)
+stdAzureResource[config_Association]:=Module[{}, StringTemplate["
+
+refLabel[refData:KeyValuePattern[\"azType\"\[Rule] \"`azType`\"]] := `azLabel`;
+refIcon[KeyValuePattern[\"azType\"\[Rule] \"`azType`\"]] := icons[\"`azIcon`\"];
+
+
+azRefToId[azRefAzurePattern[\"`azType`\"]] :=
+	StringTemplate[\"`idTemplate`\"][URLEncode /@ refData];
+
+azOpenUi[azRefAzurePattern[\"`azType`\"]] := Module[{url},
+	url = StringTemplate[\"`uiUrl`\"][refValues@ref];
+	azOpenUi[url];
+];
+
+azInfo[authorizationHeader_String, azRefAzurePattern[\"`azType`\"]] := 
+	azHttpGet[authorizationHeader,
+		StringTemplate[\"`getUrl`\"][refValues@ref]] /. 
+			ds_Dataset :> ds [<| \"azRef\" -> azRef@refData, # |>&];
+
+az`pluralName`[args___] := azApiManagementServiceList[args] /. ds_Dataset :> Normal@ds[All,\"azRef\"];
+az`listName`[
+	authorizationHeader_String,
+	azRefAzurePattern[\"`listFilter`\"]
+] := azHttpGetPaged[
+	authorizationHeader,
+	StringTemplate[\"`listUrl`\"][refValues@ref]
+] /. ds_Dataset :> ds[All, <| \"azRef\" -> azRef[<|
+	\"azType\" -> \"`azType`\",
+	keyValuesFromId[#[\"id\"], \"`idTemplate`\"]
+|>] , # |> &]
+
+"][<|
+	config,
+	"listName" -> StringJoin[config["name"]]<>"List",
+	"pluralName" -> StringJoin@MapAt[Pluralize, config["name"], -1]
+|>] 
+]
+
+
+(* ::Section:: *)
 (*azRef panel*)
 
 
@@ -199,7 +261,7 @@ NotebookImport[DirectoryName@FindFile@"azure`"<>"icons.nb","Input"->"Expression"
 
 icons =  RemoveBackground@Image[#,ImageSize->15]& /@ azIcons;
 
-icon[KeyValuePattern["azType" -> t_]] := Which[
+refIcon[KeyValuePattern["azType" -> t_]] := Which[
 	StringContainsQ[t, "devOps."], icons["devOps.default"],
 	True, icons["azure.default"]
 ];
@@ -210,17 +272,17 @@ refColor[KeyValuePattern["azType" -> t_]] := Which[
 	True, Lighter[Blue, 0.9]
 ];
 
-azRefType[KeyValuePattern["azType"->type_String]] := Last@StringSplit[type,"."] /; 
+refType[KeyValuePattern["azType"->type_String]] := Last@StringSplit[type,"."] /; 
 	StringContainsQ[type,"."];
-azRefType[_] := "unkown type";
+refType[_] := "unkown type";
 
-azRef /: MakeBoxes[obj:azRef[ref_Association], fmt_] :=
+azRef /: MakeBoxes[ref:azRef[refData_Association], fmt_] :=
 Block[{type, bg, display},
-	bg = refColor[ref];
-	type =  azRefType[ref];
+	bg = refColor[refData];
+	type =  refType[refData];
 	display = Tooltip[
 		Framed[
-			Row[{icon[ref]," ",Style[type, Italic], ": ", Style[refLabel[ref],Bold]}],
+			Row[{refIcon[refData]," ",Style[type, Italic], ": ", Style[refLabel[refData],Bold]}],
 			Background -> bg,
 			BaselinePosition -> Baseline,
 			BaseStyle -> "Panel",
@@ -228,12 +290,12 @@ Block[{type, bg, display},
 			FrameStyle -> GrayLevel[0.8],
 			RoundingRadius -> 5
 		],
-		Grid[KeyValueMap[{Style[#1,Bold],#2}&,ref],Alignment->Left]
+		Grid[KeyValueMap[{Style[#1,Bold],#2}&,refData],Alignment->Left]
 	];
 	
 	(* should probably recast this as a TemplateBox eventually *)
 	With[{boxes = ToBoxes[display, fmt]},
-		InterpretationBox[boxes, obj]
+		InterpretationBox[boxes, ref]
 	]
 ]
 
@@ -244,11 +306,11 @@ Block[{type, bg, display},
 
 
 refLabel[ref:KeyValuePattern["azType" -> "azure.subscription"]] := ref["subscriptionName"];
-icon[KeyValuePattern["azType" -> "azure.subscription"]] := icons["azure.subscription"];
+refIcon[KeyValuePattern["azType" -> "azure.subscription"]] := icons["azure.subscription"];
 
 azOpenUi[azRefAzurePattern["azure.subscription"]] := Module[{url},
 	url = StringTemplate["https://portal.azure.com/#@santander.onmicrosoft.com/resource/subscriptions/`subscriptionId`/overview"]
-		[URLEncode /@ ref];
+		[URLEncode /@ refData];
 	azOpenUi[url];
 ];
 
@@ -268,18 +330,18 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 
 
 refLabel[ref:KeyValuePattern["azType" -> "azure.aksCluster"]] := ref["aksName"];
-icon[KeyValuePattern["azType" -> "azure.aksCluster"]] := icons["azure.aks"];
+refIcon[KeyValuePattern["azType" -> "azure.aksCluster"]] := icons["azure.aks"];
 
 azOpenUi[azRefAzurePattern["azure.aksCluster"]] := Module[{url},
 	url = StringTemplate["https://portal.azure.com/#@santander.onmicrosoft.com/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ContainerService/managedClusters/`aksName`/overview"]
-		[URLEncode /@ ref];
+		[URLEncode /@ refData];
 	azOpenUi[url];
 ];
 
 azInfo[authorizationHeader_String, azRefAzurePattern["azure.aksCluster", <||>]] := 
 	azHttpGet[authorizationHeader,
 		StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ContainerService/managedClusters/`aksName`?api-version=2020-06-01"][URLEncode/@ref]
-	] /. ds_Dataset :> ds [<| "azRef" -> azRef@ref, # |>&];
+	] /. ds_Dataset :> ds [<| "azRef" -> azRef@refData, # |>&];
 
 azAksClusters[args___] := azAksClusterList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azAksClusterList[
@@ -297,7 +359,7 @@ azAksClusterList[
 		|>], #|> &] 
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Log analytics*)
 
 
@@ -309,7 +371,7 @@ azAksClusterList[
 (*https://docs.microsoft.com/en-us/azure/azure-monitor/reference/*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Tables*)
 
 
@@ -325,23 +387,23 @@ azLogAnalyticsTableStatistics[authorizationHeader_String,ref:azRef[KeyValuePatte
 	", dateRange] /. ds_Dataset :> ds["Table_0",GroupBy["DataType"],Total /* (UnitConvert[#,Quantity[1,"Gigabytes"]]&),Quantity[#Quantity,#QuantityUnit]&][ReverseSort]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Workspaces*)
 
 
 refLabel[ref:KeyValuePattern["azType" -> "azure.logAnalyticsWorkspace"]] := ref["workspaceName"];
-icon[KeyValuePattern["azType" -> "azure.logAnalyticsWorkspace"]] := icons["azure.logAnalyticsWorkspace"];
+refIcon[KeyValuePattern["azType" -> "azure.logAnalyticsWorkspace"]] := icons["azure.logAnalyticsWorkspace"];
 
 azOpenUi[azRefAzurePattern["azure.logAnalyticsWorkspace"]] := Module[{url},
 	url = StringTemplate["https://portal.azure.com/#@santander.onmicrosoft.com/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`"]
-		[URLEncode /@ ref];
+		[URLEncode /@ refData];
 	azOpenUi[url];
 ];
 
 azInfo[authorizationHeader_String, azRefAzurePattern["azure.logAnalyticsWorkspace", <||>]] := 
 	azHttpGet[authorizationHeader,
 		StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`?api-version=2020-03-01-preview"][URLEncode/@ref]
-	] /. ds_Dataset :> ds [<| "azRef" -> azRef@ref, # |>&];
+	] /. ds_Dataset :> ds [<| "azRef" -> azRef@refData, # |>&];
 
 azLogAnalyticsWorkspaces[args___] := azLogAnalyticsWorkspaceList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azLogAnalyticsWorkspaceList[
@@ -485,6 +547,23 @@ azLogAnalyticsKubeSearchContainerLogs[auth_,ref_, str_String, dateRange_: Null] 
 
 azActivityLog[
 	authorizationHeader_String,
+	ref:azRef[KeyValuePattern["azType" -> _String]],
+	dateRange:{_DateObject, _DateObject}
+] := Module[{},
+	azActivityLog[
+		authorizationHeader,
+		ref,
+		StringTemplate["
+			eventTimestamp ge '2014-07-16T04:36:37.6407898Z' 
+			and eventTimestamp le '2014-07-20T04:36:37.6407898Z' 
+			and resourceUri eq 'resourceURI'
+		"][refToIdUrl[ref]]
+	]
+];
+
+
+azActivityLog[
+	authorizationHeader_String,
 	azRef[ref:KeyValuePattern["subscriptionId" -> _String]],
 	filter_String
 ] := azHttpGetPaged[
@@ -494,59 +573,54 @@ azActivityLog[
 ];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*API manager*)
 
 
-refLabel[ref:KeyValuePattern["azType" -> "azure.apiManagementService"]] := ref["serviceName"];
-icon[KeyValuePattern["azType" -> "azure.apiManagementService"]] := icons["azure.apiManagement"];
+(* ::Subsection:: *)
+(*Services*)
 
-azOpenUi[azRefAzurePattern["azure.apiManagementService"]] := Module[{url},
-	url = StringTemplate["https://portal.azure.com/#@santander.onmicrosoft.com/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/overview"]
-		[URLEncode /@ ref];
-	azOpenUi[url];
-];
 
-azInfo[authorizationHeader_String, azRefAzurePattern["azure.apiManagementService"]] := 
-	azHttpGet[authorizationHeader,
-		StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`?api-version=2019-12-01"][URLEncode/@ref]
-	] /. ds_Dataset :> ds [<| "azRef" -> azRef@ref, # |>&];
+<|
+	"name"-> {"Api","Management","Service"},
+	"idTemplate" -> "/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`",
+	"getUrl" -> "https://management.azure.com`id`?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.ApiManagement/service?api-version=2019-12-01",
+	"listFilter" -> "azure.subscription",
+	"uiUrl"->"/resource`id`/overview",
+	"azType"->"azure.ApiManagement/service",
+	"azIcon"->"azure.apiManagement",
+	"azLabel"->"refData[\"serviceName\"]"
+|> // stdAzureResource //ToExpression
 
-azApiManagementServices[args___] := azApiManagementServiceList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
-azApiManagementServiceList[
+
+
+(* ::Subsection:: *)
+(*Loggers*)
+
+
+typeApimServiceLogger="azure.ApiManagement/service.logger";
+
+azApiManagementServiceLoggers[
 	authorizationHeader_String,
-	azRef[ref:KeyValuePattern[{
-		"azType" -> "azure.subscription"
-	}]]
-] := azHttpGet[
+	azRefAzurePattern[typeApimService]
+] := azHttpGetPaged[
 	authorizationHeader,
-	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.ApiManagement/service?api-version=2019-12-01"][ref]
-] /. ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|
-	"azType" -> "azure.apiManagementService",
+	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/loggers?api-version=2019-12-01"][refValues@ref]
+]  /. ds_Dataset :> ds[All, <| "azRef" -> azRef[<|
+	"azType" -> typeApimServiceLogger,
 	getIdKeyValue[#["id"], "subscriptions", "subscriptionId"],
 	getIdKeyValue[#["id"], "resourcegroups", "resourceGroupName"],
-	"serviceName" -> #["name"]
-|>] , # |> &]
-
-
-azApimLoggers[
-	authorizationHeader_String,
-	azRef[ref:KeyValuePattern[{
-		"subscriptionId" -> _String,
-		"resourceGroupName" -> _String,
-		"resourceName" -> _String
-	}]]
-] := azHttpGet[
-	authorizationHeader,
-	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`resourceName`/loggers?api-version=2019-12-01"][ref]
-]["value"]
+	getIdKeyValue[#["id"], "service", "serviceName"],
+	getIdKeyValue[#["id"], "loggers", "loggerName"]
+|>] , # |> &];
 
 
 (* ::Section::Closed:: *)
 (*Event Hubs*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Namespaces*)
 
 
@@ -582,7 +656,7 @@ azEventHubs[authorizationHeader_String, azRef[ref:KeyValuePattern[{
 ] /. ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|"eventhub" -> #name, ref|>], # |>&]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*DevOps*)
 
 
@@ -606,12 +680,12 @@ azRefDevOpsPattern[azType_String,asc_Association] := With[
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Projects*)
 
 
 refLabel[ref:KeyValuePattern["azType" -> "devOps.project"]] := ref["projectName"];
-icon[KeyValuePattern["azType" -> "devOps.release"]] := icons["devOps.project"];
+refIcon[KeyValuePattern["azType" -> "devOps.release"]] := icons["devOps.project"];
 
 azOpenUi[azRefDevOpsPattern["devOps.project"]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`"]
@@ -637,12 +711,12 @@ azDevOpsProjectList[authorizationHeader_String, azRef[ref:KeyValuePattern[{
 			|>], #|> &]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Git*)
 
 
 refLabel[ref:KeyValuePattern["azType" -> "devOps.repository"]] := ref["repositoryName"];
-icon[KeyValuePattern["azType" -> "devOps.repository"]] := icons["devOps.repository"];
+refIcon[KeyValuePattern["azType" -> "devOps.repository"]] := icons["devOps.repository"];
 
 azOpenUi[azRefDevOpsPattern["devOps.repository"]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_git/`repositoryName`"]
@@ -672,12 +746,12 @@ azDevOpsGitRepositoryList[authorizationHeader_String, azRefDevOpsPattern["devOps
 (*Pipelines*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Pipeline*)
 
 
 refLabel[ref:KeyValuePattern["azType" -> "devOps.pipeline"]] := ref["pipelineName"];
-icon[KeyValuePattern["azType" -> "devOps.pipeline"]] := icons["devOps.pipeline"];
+refIcon[KeyValuePattern["azType" -> "devOps.pipeline"]] := icons["devOps.pipeline"];
 
 azOpenUi[azRefDevOpsPattern["devOps.pipeline", <|"pipelineId" -> _Integer|>]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_build?definitionId=`pipelineId`"]
@@ -703,12 +777,12 @@ azDevOpsPipelineList[authorizationHeader_String, azRefDevOpsPattern["devOps.proj
 			|>], #|> &]
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Release definition*)
 
 
 refLabel[ref:KeyValuePattern["azType" -> "devOps.releaseDefinition"]] := ref["definitionName"];
-icon[KeyValuePattern["azType" -> "devOps.releaseDefinition"]] := icons["devOps.pipeline"];
+refIcon[KeyValuePattern["azType" -> "devOps.releaseDefinition"]] := icons["devOps.pipeline"];
 
 azOpenUi[azRefDevOpsPattern["devOps.releaseDefinition", <|"definitionId" -> _Integer|>]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_release?definitionId=`definitionId`"]
@@ -734,12 +808,12 @@ azDevOpsReleaseDefinitionList[authorizationHeader_String, azRefDevOpsPattern["de
 			|>], #|> &]
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Release*)
 
 
 refLabel[ref:KeyValuePattern["azType" -> "devOps.release"]] := ref["releaseDefinition"] <> "/" <> ToString@ref["releaseId"];
-icon[KeyValuePattern["azType" -> "devOps.release"]] := icons["devOps.pipeline"];
+refIcon[KeyValuePattern["azType" -> "devOps.release"]] := icons["devOps.pipeline"];
 
 azOpenUi[azRefDevOpsPattern["devOps.release", <|"releaseId" -> releaseId_|>]] := Module[{url},
 	url = StringTemplate["https://dev.azure.com/`organizationName`/`projectName`/_release?releaseId=`releaseId`&_a=release-summary"]

@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       161,          7]
-NotebookDataLength[    139506,       2323]
-NotebookOptionsPosition[    139150,       2309]
-NotebookOutlinePosition[    139552,       2325]
-CellTagsIndexPosition[    139509,       2322]
+NotebookDataLength[    140838,       2348]
+NotebookOptionsPosition[    140481,       2334]
+NotebookOutlinePosition[    140884,       2350]
+CellTagsIndexPosition[    140841,       2347]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -1446,6 +1446,29 @@ zPPzZ/4H2F/ZrA==
        DefaultBaseStyle->"ImageGraphics",
        ImageSizeRaw->{96., 96.},
        PlotRange->{{0, 96.}, {0, 96.}}]}], ",", "\[IndentingNewLine]", 
+     RowBox[{"\"\<devOps.user\>\"", "\[Rule]", 
+      GraphicsBox[
+       TagBox[RasterBox[CompressedData["
+1:eJy1Vr1OAkEQvqiFpY+gb6BG0EYBEzUmmCDGRoqTP4nNcYAJXgIlJSUtJSWP
+wCNASUnJI1Cu913c5EJud2Y5bpKPLLuz893uzt9ZpVn8OrAsq3Ps/xTL3Vy7
+XfbeTvw/707nu+HUa8/OT71Rb99UDv3J038c+bi8OGchnbqyXvJ569O2heM4
+4rfbFb1eLwDGmMMadKDLtUshc3cbcIKn3++zAF3swd443KXSB5tTBdgw5c1l
+M5brurG5JWALNjncT48Plud5LLuj0SgARxc2YZs6N4d7NpuJzWYjpGCMOc43
+3OeySn7OnS8WC6GS+XxO7m+13Eh/4PjaeDxWckuBDmXH9mNjO8Y4b7hcLkl+
+3A/HVvgdEKucPavViuSHDsdWrVoVMq9xcwvn/NDhxuV1OhXkVK7+dDol+aHD
+tfdaKLDvXmK9Xiu5sWZiC2+AumGyZzAYRL4D5rBmYguxiNplskdiOByKyWQS
+AONdbCAfmdS1JEDxR0lUzsdclFD81P1z/Uzll9T9U/6nknC9wVgllP9R8acT
+WX91orON+KPyj05w57p8QPEj/1D5N67o+JF/qfqTFL+sP1T9TYp/uw9S9R9J
+8G/3H7r+a9/8qv5L1X/uk5/qP6P6b/RzcRDmpvpvCXwj7kkXOyZwm03y3FGw
+DXsTE1/jAt+NWDXlxZ5dzqwCchXyJezibcI+gjHmsAYdmdc4+AOSermq
+         "], {{0, 32.}, {32., 0}}, {0, 255},
+         ColorFunction->RGBColor,
+         ImageResolution->72],
+        BoxForm`ImageTag["Byte", ColorSpace -> "RGB", Interleaving -> False],
+        Selectable->False],
+       DefaultBaseStyle->"ImageGraphics",
+       ImageSizeRaw->{32., 32.},
+       PlotRange->{{0, 32.}, {0, 32.}}]}], ",", "\[IndentingNewLine]", 
      RowBox[{"\"\<devOps.test\>\"", "->", 
       GraphicsBox[
        TagBox[RasterBox[CompressedData["
@@ -2303,12 +2326,14 @@ y8eexOhvvBC19SVXQ62lyfzXxxe11SIm7Uo2dq+/iDn2+zDgU/XPKi4Wh8g0
    3.8054452177601757`*^9}, {3.80544544908008*^9, 3.8054454494680505`*^9}, 
    3.8054458764236813`*^9, {3.805528630174013*^9, 3.8055286514705734`*^9}, {
    3.8055286815326834`*^9, 3.8055287128860426`*^9}, {3.805529178956856*^9, 
-   3.805529185282832*^9}, {3.805638773040934*^9, 
-   3.8056387908759813`*^9}},ExpressionUUID->"1696c23d-434d-48e9-a353-\
+   3.805529185282832*^9}, {3.805638773040934*^9, 3.8056387908759813`*^9}, 
+   3.8064151812814198`*^9, 3.8064742942974925`*^9, {3.8064943656556506`*^9, 
+   3.8064943856965094`*^9}, 
+   3.8064944464667573`*^9},ExpressionUUID->"1696c23d-434d-48e9-a353-\
 04305863c16e"]
 },
-WindowSize->{958, 981},
-WindowMargins->{{313, Automatic}, {Automatic, 9}},
+WindowSize->{1302, 981},
+WindowMargins->{{37, Automatic}, {Automatic, 93}},
 FrontEndVersion->"12.1 for Microsoft Windows (64-bit) (July 8, 2020)",
 StyleDefinitions->"ReverseColor.nb",
 ExpressionUUID->"ce057302-480d-47d8-883e-ea7a656e8ad8"
@@ -2324,7 +2349,7 @@ CellTagsIndex->{}
 *)
 (*NotebookFileOutline
 Notebook[{
-Cell[561, 20, 138585, 2287, 662, "Input",ExpressionUUID->"1696c23d-434d-48e9-a353-04305863c16e"]
+Cell[561, 20, 139916, 2312, 702, "Input",ExpressionUUID->"1696c23d-434d-48e9-a353-04305863c16e"]
 }
 ]
 *)

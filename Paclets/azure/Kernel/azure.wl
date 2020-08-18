@@ -5,6 +5,15 @@
 
 
 (* ::Section:: *)
+(*Notes*)
+
+
+(* ::Text:: *)
+(*To do:*)
+(*- rename 	list to resource*)
+
+
+(* ::Section:: *)
 (*Header*)
 
 
@@ -17,11 +26,15 @@ azShellLogin;
 azHttpGet;
 azHttpGetPaged;
 azHttpPost;
+azHttpPut;
 azHttpPatch;
+azHttpDelete;
 azShellGetToken;
 azRef;
 azParseRefFromId;
 azInfo;
+azDelete;
+azUpdate;
 azOpenUi;
 azRefToId;
 azOperations;
@@ -77,21 +90,35 @@ azActivityLog;
 azDevOpsProjects;
 azDevOpsProjectList;
 azDevOpsProjectSearch;
+
 azDevOpsGitRepositories;
 azDevOpsGitRepositoryList;
 azDevOpsGitRepositorySearch;
-azDevOpsBuildPipelines;
-azDevOpsBuildPipelineList;
-azDevOpsBuildPipelineSearch;
+
+azDevOpsBuildDefinitions;
+azDevOpsBuildDefinitionCreate;
+azDevOpsBuildDefinitionList;
+azDevOpsBuildDefinitionSearch;
+
 azDevOpsReleaseDefinitions;
+azDevOpsReleaseDefinitionCreate;
 azDevOpsReleaseDefinitionList;
 azDevOpsReleaseDefinitionSearch;
+
 azDevOpsReleases;
+azDevOpsReleaseCreate;
 azDevOpsReleaseList;
 azDevOpsReleaseSearch;
+azDevOpsReleaseStages;
+azDevOpsReleaseStageDeploy;
+
 azDevOpsUsers;
 azDevOpsUserList;
 azDevOpsUserSearch;
+
+azDevOpsGroups;
+azDevOpsGroupList;
+azDevOpsGroupSearch;
 
 
 (* temp *)
@@ -110,7 +137,7 @@ keyValueContainsQ;
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
@@ -161,10 +188,37 @@ azHttpGet[authorizationHeader_String,  url_String] := Module[
 	azParseRestResponde@res
 ]
 
+azHttpDelete[authorizationHeader_String,  url_String] := Module[
+	{req, res},
+	req = HTTPRequest[url, <|
+		Method -> "DELETE",
+		"ContentType" -> "application/json",
+		"Headers" -> {"Authorization" -> authorizationHeader}
+	|>];
+	Sow[req];
+	res = URLRead@req;
+	Sow[res];
+	azParseRestResponde@res
+]
+
 azHttpPost[authorizationHeader_String,  url_String, data_Association] := Module[
 	{req, res},
 	req = HTTPRequest[url, <|
 		Method -> "POST",
+		"ContentType" -> "application/json",
+		"Headers" -> {"Authorization" -> authorizationHeader},
+		"Body" -> ExportString[data,"RawJSON"]
+	|>];
+	Sow[req];
+	res = URLRead@req;
+	Sow[res];
+	azParseRestResponde@res
+]
+
+azHttpPut[authorizationHeader_String,  url_String, data_Association] := Module[
+	{req, res},
+	req = HTTPRequest[url, <|
+		Method -> "PUT",
 		"ContentType" -> "application/json",
 		"Headers" -> {"Authorization" -> authorizationHeader},
 		"Body" -> ExportString[data,"RawJSON"]
@@ -308,7 +362,13 @@ devOpsInfoBuilder[cfg:KeyValuePattern[{
 azInfo[authorizationHeader_String, azRefDevOpsPattern[TemplateSlot["azType"]]] := 
 	azHttpGet[authorizationHeader,
 		StringTemplate[TemplateSlot["getUrl"]][URLEncode/@refData]
-	] /. ds_Dataset :> ds[<| "azRef" -> ref, # |>&]
+	] /. ds_Dataset :> ds[<|
+		"azRef" -> azRef[<|
+				"azType" -> TemplateSlot["azType"],
+				TemplateSlot["listResultKeysFunc"][#]
+			|>],
+		 # 
+	|> &]
 ]][cfg] // ReleaseHold
 
 devOpsListBuilder[cfg:KeyValuePattern[{
@@ -329,7 +389,6 @@ Symbol["azDevOps"<>TemplateSlot["nameSingular"]<>"List"][authorizationHeader_Str
 			|>], #|> &]
 ]][cfg] // ReleaseHold
 
-
 devOpsRestDocumentationBuilder[cfg:KeyValuePattern[{
 	"azType"->_String
 }]] := TemplateObject[Hold[
@@ -341,6 +400,7 @@ devOpsSearchBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
 	"nameSingular" -> _String,
 	"listFilter" -> _,
+	"listURL" -> _,
 	"searchFields" -> {_String..}
 }]] := TemplateObject[Hold[
 Symbol["azDevOps"<>TemplateSlot["nameSingular"]<>"Search"][auth_String, TemplateSlot["listFilter"], pattern_] := Module[{query},
@@ -351,16 +411,69 @@ Symbol["azDevOps"<>TemplateSlot["nameSingular"]<>"Search"][auth_String, Template
 	]]
 ]][cfg] // ReleaseHold
 
+devOpsCreateBuilder[cfg:KeyValuePattern[{
+	"azType"->_String,
+	"nameSingular" -> _String,
+	"listUrl" -> _String
+}]] := TemplateObject[Hold[
+Symbol["azDevOps"<>TemplateSlot["nameSingular"]<>"Create"][auth_String, TemplateSlot["listFilter"], data_Dataset] :=
+	Symbol["azDevOps"<>TemplateSlot["nameSingular"]<>"Create"][auth, ref, Normal@data];
+Symbol["azDevOps"<>TemplateSlot["nameSingular"]<>"Create"][auth_String, TemplateSlot["listFilter"], data_Association] :=
+	azHttpPost[auth, StringTemplate[TemplateSlot["listUrl"]][URLEncode /@ refData], KeyDrop[data,"azRef"]] /. ds_Dataset :> ds[<|
+		"azRef" -> azRef[<|
+				"azType" -> TemplateSlot["azType"],
+				TemplateSlot["listResultKeysFunc"][#]
+			|>],
+		 # 
+	|> &]	
+]][cfg] // ReleaseHold
+
+devOpsUpdateBuilder[cfg:KeyValuePattern[{
+	"azType"->_String,
+	"getUrl"->_String
+}]] := TemplateObject[Hold[
+azUpdate[auth_String, data_Dataset] :=
+	azUpdate[auth, data["azRef"] ,data];
+azUpdate[auth_String, azRefDevOpsPattern[TemplateSlot["azType"]], data_Dataset] :=
+	azUpdate[auth, ref, KeyDrop[Normal@data, "azRef"]];
+azUpdate[authorizationHeader_String, azRefDevOpsPattern[TemplateSlot["azType"]], data_Association] := 
+	azHttpPut[authorizationHeader,
+		StringTemplate[TemplateSlot["getUrl"]][URLEncode/@refData],
+		KeyDrop[data,"azRef"]
+	] /. ds_Dataset :> ds[<|
+		"azRef" -> azRef[<|
+				"azType" -> TemplateSlot["azType"],
+				TemplateSlot["listResultKeysFunc"][#]
+			|>],
+		 # 
+	|> &]
+]][cfg] // ReleaseHold
+
+devOpsDeleteBuilder[cfg:KeyValuePattern[{
+	"azType"->_String,
+	"getUrl"->_String
+}]] := TemplateObject[Hold[
+azDelete[authorizationHeader_String, azRefDevOpsPattern[TemplateSlot["azType"]]] :=
+	azHttpDelete[authorizationHeader,
+		StringTemplate[TemplateSlot["getUrl"]][URLEncode/@refData]
+	] 
+]][cfg] // ReleaseHold
+
 
 devOpsDefaultOperationsBuilder[cfg_Association] := (
 	devOpsPanelInfoBuilder[cfg];
-	devOpsOpenUiBuilder[cfg];
+	If[KeyExistsQ[cfg,"uiUrl"],
+		devOpsOpenUiBuilder[cfg],
+		Null];
 	devOpsInfoBuilder[cfg];
 	devOpsListBuilder[cfg];
 	devOpsRestDocumentationBuilder[cfg];
 	If[KeyExistsQ[cfg, "searchFields"],
 		devOpsSearchBuilder[cfg],
-		Null]
+		Null];
+	devOpsCreateBuilder[cfg];
+	devOpsUpdateBuilder[cfg];
+	devOpsDeleteBuilder[cfg];
 );
 	
 
@@ -913,35 +1026,39 @@ panelInfo["devOps.organization"] := <|
 
 
 (* ::Subsection:: *)
-(*Pipelines*)
+(*Build*)
 
 
 (* ::Subsubsection::Closed:: *)
-(*Build pipeline*)
+(*Build definition*)
 
 
 <|
-	"azType"->"devOps.buildPipeline",
-	"nameSingular"->"BuildPipeline",
-	"namePlural"->"BuildPipelines",
+	"azType"->"devOps.buildDefinition",
+	"nameSingular"->"BuildDefinition",
+	"namePlural"->"BuildDefinitions",
 	"panelIcon"-> icons["devOps.pipeline"],
-	"panelLabelFunc"-> Function[{refData},refData["pipelineName"]],
-	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/pipelines/pipelines?view=azure-devops-rest-6.0",
-	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_build?definitionId=`pipelineId`",
-	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/pipelines/`pipelineId`?api-version=6.0-preview.1",
-	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/pipelines?api-version=6.0-preview.1",
+	"panelLabelFunc"-> Function[{refData},refData["name"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/build/definitions?view=azure-devops-rest-5.0",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_build/definition?definitionId=`definitionId`",
+	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/build/definitions/`definitionId`?api-version=5.0",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/build/definitions?api-version=5.0",
 	"listFilter" -> azRefDevOpsPattern["devOps.project"],
 	"listResultKeysFunc" -> Function[{res}, <|
 		"organizationName" -> devOpsOrgFromUrl[res["url"]],  
 		"projectId" -> devOpsProjectIdFromUrl[res["url"]],
-		"pipelineName" -> res["name"],
-		"pipelineId" -> res["id"]
+		"definitionId" -> res["id"],
+		"name" -> res["name"]
 	|>],
 	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection:: *)
+(* ::Subsection:: *)
+(*Release*)
+
+
+(* ::Subsubsection::Closed:: *)
 (*Release definition*)
 
 
@@ -970,6 +1087,10 @@ panelInfo["devOps.organization"] := <|
 (*Release*)
 
 
+(* ::Text:: *)
+(*https://stackoverflow.com/questions/57658663/how-to-start-a-specific-stage-in-a-release-using-azure-devops-rest-api*)
+
+
 <|
 	"azType"->"devOps.release",
 	"nameSingular"->"Release",
@@ -979,7 +1100,7 @@ panelInfo["devOps.organization"] := <|
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/release/releases?view=azure-devops-rest-6.0",
 	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_release?releaseId=`releaseId`&_a=release-summary",
 	"getUrl"->"https://vsrm.dev.azure.com/`organizationName`/`projectId`/_apis/release/releases/`releaseId`?api-version=6.0-preview.8",
-	"listUrl" -> "https://vsrm.dev.azure.com/`organizationName`/`projectId`/_apis/release/releases?definitionId=`definitionId`",
+	"listUrl" -> "https://vsrm.dev.azure.com/`organizationName`/`projectId`/_apis/release/releases?definitionId=`definitionId`&api-version=6.0-preview.8",
 	"listFilter" -> azRefDevOpsPattern["devOps.releaseDefinition"],
 	"listResultKeysFunc" -> Function[{res}, <|
 		"organizationName" -> devOpsOrgFromUrl[res["url"]], 
@@ -991,8 +1112,21 @@ panelInfo["devOps.organization"] := <|
 	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
 
+azDevOpsReleaseCreate[authorizationHeader_String, azRefDevOpsPattern["devOps.releaseDefinition"]] :=
+	azDevOpsReleaseCreate[authorizationHeader, ref, <| "definitionId" -> refData["definitionId"] |>]
+	
+azDevOpsReleaseStages[auth_String, azRefDevOpsPattern["devOps.release"]] := 
+	azInfo[auth, ref]["environments",All,{"id","name","status"}];
+	
+azDevOpsReleaseStageDeploy[auth_String, azRefDevOpsPattern["devOps.release"], stageId_Integer] := 
+	azHttpPatch[
+		auth,
+		StringTemplate["https://vsrm.dev.azure.com/`organizationName`/`projectId`/_apis/Release/releases/`releaseId`/environments/`environmentId`?api-version=6.0-preview.7"][<| refData, "environmentId"->stageId|>],
+		<|"status"->"inProgress"|>
+	]
 
-(* ::Subsection:: *)
+
+(* ::Subsection::Closed:: *)
 (*Graph*)
 
 
@@ -1019,13 +1153,37 @@ panelInfo["devOps.organization"] := <|
 	"searchFields" -> {"displayName","mailAddress","directoryAlias"}
 |> // devOpsDefaultOperationsBuilder
 
-(*
-azDevOpsUserSearch[auth_String, azRefDevOpsPattern["devOps.organization"], pattern_] :=
-	azDevOpsUserList[auth, ref][
-		Select[keyValueContainsQ[#,{"displayName","mailAddress","directoryAlias"}, pattern] &]
-	]
-	
-*)
+
+(* ::Subsubsection:: *)
+(*Users groups*)
+
+
+<|
+	"azType"->"devOps.group",
+	"nameSingular"->"Group",
+	"namePlural"->"Groups",
+	"panelIcon"-> icons["devOps.user"],
+	"panelLabelFunc"-> Function[{refData}, refData["displayName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/graph/groups?view=azure-devops-rest-6.0",
+	"getUrl"->"https://vssps.dev.azure.com/`organizationName`/_apis/graph/groups/`groupDescriptor`?api-version=6.0-preview.1",
+	"listUrl" -> "https://vssps.dev.azure.com/`organizationName`/_apis/graph/groups?api-version=6.0-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.organization"],
+	"listResultKeysFunc" -> Function[{res}, <|
+		"organizationName" -> devOpsOrgFromUrl[res["url"]], 
+		"groupDescriptor" -> res["descriptor"],
+		"displayName" -> res["displayName"]
+	|>],
+	"searchFields" -> {"displayName"}
+|> // devOpsDefaultOperationsBuilder
+
+azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]] := Module[
+	{memberships},
+	memberships = azHttpGet[
+		authorizationHeader,
+		StringTemplate["https://vssps.dev.azure.com/`organizationName`/_apis/graph/Memberships/`userDescriptor`?api-version=6.0-preview.1"][
+			URLEncode/@refData
+		]]
+]
 
 
 (* ::Section::Closed:: *)

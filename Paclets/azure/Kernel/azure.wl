@@ -106,6 +106,8 @@ azDevOpsProjectSearch;
 azDevOpsGitRepositories;
 azDevOpsGitRepositoryList;
 azDevOpsGitRepositorySearch;
+azDevOpsGitRepositoryRefs;
+azDevOpsGitRepositoryRefList;
 
 azDevOpsBuildDefinitions;
 azDevOpsBuildDefinitionCreate;
@@ -470,16 +472,20 @@ devOpsInfoBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
 	"getUrl"->_String
 }]] := TemplateObject[Hold[
-azInfo[authorizationHeader_String, azRefDevOpsPattern[TemplateSlot["azType"]]] := 
-	azHttpGet[authorizationHeader,
+azInfo[authorizationHeader_String, azRefDevOpsPattern[TemplateSlot["azType"]]] := Module[
+	{res},
+	res = azHttpGet[authorizationHeader,
 		StringTemplate[TemplateSlot["getUrl"]][URLEncode/@refData]
-	] /. ds_Dataset :> ds[<|
+	];
+	res = res /. ds_Dataset :> Dataset[Normal[res]/. KeyValuePattern[{"value" -> v_, "count"->1}] :> First@v];
+	res /. ds_Dataset :> ds[<|
 		"azRef" -> azRef[<|
 				"azType" -> TemplateSlot["azType"],
 				TemplateSlot["listResultKeysFunc"][#]
 			|>],
 		 # 
 	|> &]
+]
 ]][cfg] // ReleaseHold
 
 devOpsListBuilder[cfg:KeyValuePattern[{
@@ -1205,12 +1211,16 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Git*)
 
 
+(* ::Subsubsection:: *)
+(*Repositories*)
+
+
 <|
-	"azType"->"devOps.repository",
+	"azType"->"devOps.git.repository",
 	"nameSingular"->"GitRepository",
 	"namePlural"->"GitRepositories",
 	"panelIcon"-> icons["devOps.repository"],
@@ -1233,6 +1243,34 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 (* ::Subsection:: *)
+(*Refs*)
+
+
+<|
+	"azType"->"devOps.git.ref",
+	"nameSingular"->"GitRepositoryRef",
+	"namePlural"->"GitRepositoryRefs",
+	"panelIcon"-> icons["devOps.repository"],
+	"panelLabelFunc"-> Function[{refData},refData["refName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/git/refs?view=azure-devops-rest-6.0",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_git/pipeliner/branches",
+	"getUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/refs?filter=`refName`",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/refs?api-version=6.0-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.git.repository"],
+	"parentAzType" -> "devOps.git.repository",
+	"listResultKeysFunc" -> Function[{res}, <| 
+		"organizationName" -> devOpsOrgFromUrl[res["url"]], 
+		"projectId" -> devOpsProjectIdFromUrl[res["url"]],
+		"repositoryId" -> getIdKeyValue[res["url"],"repositories/"],
+		"refName" -> StringReplace[res["name"],"refs/"->""],
+		"objectId" -> res["objectId"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
+
+
+
+(* ::Subsection::Closed:: *)
 (*Build*)
 
 

@@ -98,6 +98,11 @@ azEventHubNamespaceSearch;
 (* Monitor: activity log *)
 azActivityLog;
 
+(* Application Insight *)
+azAppInsightComponents;
+azAppInsightComponentList;
+azAppInsightComponentSearch;
+
 (* Azure DevOps *)
 azDevOpsProjects;
 azDevOpsProjectList;
@@ -106,8 +111,14 @@ azDevOpsProjectSearch;
 azDevOpsGitRepositories;
 azDevOpsGitRepositoryList;
 azDevOpsGitRepositorySearch;
-azDevOpsGitRepositoryRefs;
-azDevOpsGitRepositoryRefList;
+azDevOpsGitRefs;
+azDevOpsGitRefList;
+azDevOpsGitRefSearch;
+azDevOpsGitCommits;
+azDevOpsGitCommitList;
+azDevOpsGitCommitSearch:
+azDevOpsGitCommitGraph;
+azDevOpsGitCommitPlot;
 
 azDevOpsBuildDefinitions;
 azDevOpsBuildDefinitionCreate;
@@ -150,12 +161,13 @@ panelInfo;
 subscriptionIdFromId;
 resourceGroupNameFromId;
 azureRelationBuilder;
+devOpsSearchBuilder;
 
 
 Begin["`Private`"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Base*)
 
 
@@ -167,7 +179,8 @@ relations={};
 azRelations[]:=relations;
 
 
-pluralize[s_String] := Pluralize[s];
+azRef/:Normal[azRef[a_Association]] := a;
+azRef[a_Association][property_String] := a[property];
 
 
 azSetUiPortalPrefix[prefix_String] := LocalSymbol["azUiPrefix"] = prefix;
@@ -201,6 +214,10 @@ azParseRefFromId[id_String] := StringCases[ToLowerCase@id,
 ] /. {v_} :> v;
 
 azHttpGetPaged[auth_ ,args___] := azHttpGet[auth, args] // (pageData[auth, #] /. l_List :> Dataset@l) & 
+
+Clear[azHttpGet];
+azHttpGet[auth_,{urlTemplate_String,azRef[data_Association]}, args___]:=
+	azHttpGet[auth,StringTemplate[urlTemplate][URLEncode/@ data],args];
 azHttpGet[authorizationHeader_String,  url_String] := Module[
 	{req, res},
 	req = HTTPRequest[url, <|
@@ -327,7 +344,7 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Azure*)
 
 
@@ -356,7 +373,7 @@ azureOpenUiBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
 	"uiUrl"-> _String
 }]] := TemplateObject[Hold[
-azOpenUi[azRefDevOpsPattern[TemplateSlot["azType"]]] := Module[{url},
+azOpenUi[azRefAzurePattern[TemplateSlot["azType"]]] := Module[{url},
 	url=StringTemplate[TemplateSlot["uiUrl"]][URLEncode /@ refData];
 	azOpenUi[url];
 ]]][cfg] // ReleaseHold
@@ -365,7 +382,7 @@ azureInfoBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
 	"getUrl"->_String
 }]] := TemplateObject[Hold[
-azInfo[authorizationHeader_String, azRefDevOpsPattern[TemplateSlot["azType"]]] := 
+azInfo[authorizationHeader_String, azRefAzurePattern[TemplateSlot["azType"]]] := 
 	azHttpGet[authorizationHeader,
 		StringTemplate[TemplateSlot["getUrl"]][URLEncode/@refData]
 	] /. ds_Dataset :> ds[<|
@@ -406,7 +423,7 @@ AppendTo[relations, {TemplateSlot["parentAzType"]->TemplateSlot["azType"], {"az"
 azureRestDocumentationBuilder[cfg:KeyValuePattern[{
 	"azType"->_String
 }]] := TemplateObject[Hold[
-azRestDocumentation[azRefDevOpsPattern[TemplateSlot["azType"]]] :=
+azRestDocumentation[azRefAzurePattern[TemplateSlot["azType"]]] :=
 	SystemOpen[TemplateSlot["restDocumentation"]]
 ]][cfg] // ReleaseHold;
 
@@ -462,7 +479,7 @@ azIcon[TemplateSlot["azType"]] := TemplateSlot["panelIcon"];
 
 devOpsOpenUiBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
-	"uiUrl"-> _String
+	"uiUrl"-> _
 }]] := TemplateObject[Hold[
 azOpenUi[azRefDevOpsPattern[TemplateSlot["azType"]]] := 
 	azOpenDevOpsUi[StringTemplate[TemplateSlot["uiUrl"]][URLEncode /@ refData]]
@@ -511,7 +528,7 @@ devOpsRelationBuilder[cfg:KeyValuePattern[{
 	"parentAzType" -> _String,
 	"namePlural" -> _String
 }]] := TemplateObject[Hold[
-AppendTo[relations, {TemplateSlot["parentAzType"]->TemplateSlot["azType"], {"az"<>TemplateSlot["namePlural"],"az"<>TemplateSlot["nameSingular"]<>"List"}}]
+AppendTo[relations, {TemplateSlot["parentAzType"]->TemplateSlot["azType"], {"azDevOps"<>TemplateSlot["namePlural"],"azDevOps"<>TemplateSlot["nameSingular"]<>"List"}}]
 ]][cfg] // ReleaseHold;
 
 devOpsRestDocumentationBuilder[cfg:KeyValuePattern[{
@@ -525,7 +542,7 @@ devOpsSearchBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
 	"nameSingular" -> _String,
 	"listFilter" -> _,
-	"listURL" -> _,
+	"listUrl" -> _,
 	"searchFields" -> {_String..}
 }]] := TemplateObject[Hold[
 Symbol["azDevOps"<>TemplateSlot["nameSingular"]<>"Search"][auth_String, TemplateSlot["listFilter"], pattern_] := Module[{query},
@@ -603,7 +620,6 @@ devOpsDefaultOperationsBuilder[cfg_Association] := (
 		devOpsRelationBuilder[cfg],
 		Null];	
 );
-	
 
 
 (* ::Section::Closed:: *)
@@ -1139,6 +1155,37 @@ azureDefaultOperationsBuilder[cfg];
 
 
 (* ::Section:: *)
+(*Application Insights*)
+
+
+(* ::Subsection::Closed:: *)
+(*Components*)
+
+
+cfg = <|
+	"azType"->"azure.applicationInsight.component",
+	"nameSingular"-> "AppInsightComponent",
+	"namePlural"-> "AppInsightComponents",
+	"panelIcon"-> icons["azure.applicationInsight"],
+	"panelLabelFunc"-> Function[{refData}, refData["componentName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/application-insights/components",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/microsoft.insights/components/`componentName`/overview",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Insights/components/`componentName`?api-version=2015-05-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.Insights/components?api-version=2015-05-01",
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"componentName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+
+azureDefaultOperationsBuilder[cfg];
+
+
+(* ::Section:: *)
 (*DevOps*)
 
 
@@ -1211,11 +1258,11 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 
-(* ::Subsubsection:: *)
+(* ::Subsection:: *)
 (*Git*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Repositories*)
 
 
@@ -1242,20 +1289,20 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 
-(* ::Subsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Refs*)
 
 
 <|
 	"azType"->"devOps.git.ref",
-	"nameSingular"->"GitRepositoryRef",
-	"namePlural"->"GitRepositoryRefs",
+	"nameSingular"->"GitRef",
+	"namePlural"->"GitRefs",
 	"panelIcon"-> icons["devOps.repository"],
 	"panelLabelFunc"-> Function[{refData},refData["refName"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/git/refs?view=azure-devops-rest-6.0",
-	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_git/pipeliner/branches",
-	"getUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/refs?filter=`refName`",
-	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/refs?api-version=6.0-preview.1",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_git/APIs?version=GB<* Last@StringSplit[#refName,URLEncode[\"/\"]] *>",
+	"getUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/refs?filter=`refName`&includeLinks=True&latestStatusesOnly=True",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/refs?api-version=6.0-preview.1&includeLinks=True&latestStatusesOnly=True",
 	"listFilter" -> azRefDevOpsPattern["devOps.git.repository"],
 	"parentAzType" -> "devOps.git.repository",
 	"listResultKeysFunc" -> Function[{res}, <| 
@@ -1266,11 +1313,85 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 		"objectId" -> res["objectId"]
 	|>],
 	"searchFields" -> {"name"}
-|> // devOpsDefaultOperationsBuilder
+|> // devOpsDefaultOperationsBuilder 
+
+azDevOpsGitRefList[authorizationHeader_String, azRefDevOpsPattern["devOps.git.commit"]] :=Module[{repo,commit},
+	commit = ref;
+	repo = ReplacePart[ref,{1,"azType"}->"devOps.git.repository"];
+	If[MemberQ[azDevOpsGitCommits[authorizationHeader,#],commit],#,Nothing] & /@ 
+		azDevOpsGitRefs[authorizationHeader,repo]
+];
+
+AppendTo[relations, {"devOps.git.ref"->"devOps.git.commit", {"azDevOpsGitRefs","azDevOpsGitRefList"}}];
 
 
+(* ::Subsubsection:: *)
+(*Commits*)
 
-(* ::Subsection::Closed:: *)
+
+(conf = <|
+	"azType"->"devOps.git.commit",
+	"nameSingular"->"GitCommit",
+	"namePlural"->"GitCommits",
+	"panelIcon"-> icons["devOps.repository"],
+	"panelLabelFunc"-> Function[{refData},StringTake[refData["commitId"],6]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/git/commits?view=azure-devops-rest-6.0",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_git/APIs/commit/`commitId`",
+	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/commits/`commitId`?api-version=6.0-preview.1",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/commits?api-version=6.0-preview.1&searchCriteria.includeLinks=true&$top=1000&searchCriteria.includePushData=true",
+	"listFilter" -> azRefDevOpsPattern["devOps.git.repository"],
+	"parentAzType" -> "devOps.git.repository",
+	"listResultKeysFunc" -> Function[{res}, <| 
+		"organizationName" -> devOpsOrgFromUrl[res["url"]], 
+		"projectId" -> devOpsProjectIdFromUrl[res["url"]],
+		"repositoryId" -> getIdKeyValue[res["url"],"repositories/"],
+		"commitId" -> res["commitId"]
+	|>],
+	"searchFields" -> {"commitId"}
+|>) // devOpsDefaultOperationsBuilder
+
+azDevOpsGitCommitList[authorizationHeader_String, azRefDevOpsPattern["devOps.git.ref"]] := 
+	azHttpGet[authorizationHeader, 
+		StringTemplate["https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/commits?searchCriteria.itemVersion.version=<* Last@StringSplit[#refName,URLEncode[\"/\"]] *>&api-version=6.0-preview.1&$top=1000"][URLEncode /@ refData]] /.
+			ds_Dataset :> ds["value", All, <| "azRef" -> azRef[<|
+				"azType" -> "devOps.git.commit",
+				Function[{res}, <| 
+					"organizationName" -> devOpsOrgFromUrl[res["url"]], 
+					"projectId" -> devOpsProjectIdFromUrl[res["url"]],
+					"repositoryId" -> getIdKeyValue[res["url"],"repositories/"],
+					"commitId" -> res["commitId"] |>][#]
+			|>], #|> &]
+
+AppendTo[relations, {"devOps.git.commit"->"devOps.git.ref", {"azDevOpsGitCommits","azDevOpsGitCommitList"}}];
+
+azInfo[auth_, commits:{azRef[KeyValuePattern["azType" -> "devOps.git.commit"]]..}] :=
+	Dataset@Flatten[Normal@azInfo[auth,#] & /@ commits];
+
+
+azDevOpsGitCommitGraph[commitDS_Dataset]:=Module[{vertices,edges},
+	vertices = commitDS[All,Annotation[#commitId,"data"->#]&] // Normal;
+	edges = Flatten@Normal@commitDS[All,Function[{row},{row["commitId"]->#& /@ row["parents"]}]];
+	Graph[vertices,edges]
+]
+
+
+azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
+	g,
+	GraphLayout->"LayeredDigraphEmbedding",
+	VertexShapeFunction->
+	Function[{xy,name,wh},
+		With[{data=AnnotationValue[ {g,name},"data"]},
+			Tooltip[
+				EventHandler[Disk[xy,First@wh],{"MouseClicked":>CreateDialog@Dataset@data}],
+				data["comment"]
+			]
+		]
+	],
+	DirectedEdges->True
+];
+
+
+(* ::Subsection:: *)
 (*Build*)
 
 
@@ -1374,7 +1495,7 @@ azDevOpsReleaseStageDeploy[auth_String, azRefDevOpsPattern["devOps.release"], st
 	]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Graph*)
 
 

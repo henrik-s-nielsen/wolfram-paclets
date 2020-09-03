@@ -31,6 +31,7 @@ azHttpPatch;
 azHttpDelete;
 azShellGetToken;
 azRef;
+azCreateAzRef;
 azParseRefFromId;
 azInfo;
 azDelete;
@@ -42,6 +43,8 @@ azRestDocumentation;
 azIcon;
 azRelations;
 azRelationPlot;
+azDownload;
+azFileNames;
 
 azSetUiPortalPrefix;
 azGetUiPortalPrefix;
@@ -111,6 +114,7 @@ azDevOpsProjectSearch;
 azDevOpsGitRepositories;
 azDevOpsGitRepositoryList;
 azDevOpsGitRepositorySearch;
+azDevOpsCreateGitRef;
 azDevOpsGitRefs;
 azDevOpsGitRefList;
 azDevOpsGitRefSearch;
@@ -125,17 +129,23 @@ azDevOpsBuildDefinitionCreate;
 azDevOpsBuildDefinitionList;
 azDevOpsBuildDefinitionSearch;
 
+azDevOpsBuildRuns;
+azDevOpsBuildRunList;
+azDevOpsBuildRunSearch;
+azDevOpsBuildArtifacts;
+azDevOpsBuildArtifactList;
+
 azDevOpsReleaseDefinitions;
 azDevOpsReleaseDefinitionCreate;
 azDevOpsReleaseDefinitionList;
 azDevOpsReleaseDefinitionSearch;
 
-azDevOpsReleases;
-azDevOpsReleaseCreate;
-azDevOpsReleaseList;
-azDevOpsReleaseSearch;
-azDevOpsReleaseStages;
-azDevOpsReleaseStageDeploy;
+azDevOpsReleaseRuns;
+azDevOpsReleaseRunCreate;
+azDevOpsReleaseRunList;
+azDevOpsReleaseRunSearch;
+azDevOpsReleaseRunStages;
+azDevOpsReleaseRunStageDeploy;
 
 azDevOpsUsers;
 azDevOpsUserList;
@@ -144,6 +154,18 @@ azDevOpsUserSearch;
 azDevOpsGroups;
 azDevOpsGroupList;
 azDevOpsGroupSearch;
+
+azDevOpsArtifactFeeds;
+azDevOpsArtifactFeedList;
+azDevOpsArtifactFeedSearch;
+
+azDevOpsArtifactPackages;
+azDevOpsArtifactPackageList;
+azDevOpsArtifactPackageSearch;
+
+azDevOpsArtifactPackageVersions;
+azDevOpsArtifactPackageVersionList;
+azDevOpsAritfactPackageVersionSearch;
 
 
 (* temp *)
@@ -171,7 +193,7 @@ Begin["`Private`"];
 (*Base*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Core*)
 
 
@@ -181,6 +203,12 @@ azRelations[]:=relations;
 
 azRef/:Normal[azRef[a_Association]] := a;
 azRef[a_Association][property_String] := a[property];
+
+azCreateAzRef[base_azRef, azType_String,data_Association] := Module[
+	{d=Normal@base},
+	d["azType"] = azType;
+	azRef[<|d,data|>]
+]
 
 
 azSetUiPortalPrefix[prefix_String] := LocalSymbol["azUiPrefix"] = prefix;
@@ -285,6 +313,34 @@ azHttpPatch[authorizationHeader_String,  url_String, data_Association] := Module
 	Sow[res];
 	azParseRestResponde@res
 ]
+
+azDownload[authorizationHeader_String,  url_String, file_String] := Module[
+	{res, req},
+	req = HTTPRequest[url, <|
+		Method -> "GET",
+		"ContentType" -> "application/zip",
+		"Headers" -> {"Authorization" -> authorizationHeader}
+	|>];
+	Sow[req];
+	res = URLRead@req;
+	Sow[res];
+	BinaryWrite[file,res["BodyByteArray"]];
+	Close[file]
+]
+
+azFileNames[authorizationHeader_String,  url_String] := Module[
+	{res, req},
+	req = HTTPRequest[url, <|
+		Method -> "GET",
+		"ContentType" -> "application/zip",
+		"Headers" -> {"Authorization" -> authorizationHeader}
+	|>];
+	Sow[req];
+	res = URLRead@req;
+	Sow[res];
+	ImportByteArray[res["BodyByteArray"],"ZIP"]
+]
+
 
 getIdKeyValue[id_String, idKey_String] := StringCases[
 	id,
@@ -735,7 +791,7 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 |> // stdAzureResource //ToExpression
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Log analytics*)
 
 
@@ -942,7 +998,7 @@ azActivityLog[
 ];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*API manager*)
 
 
@@ -1123,7 +1179,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Event Hubs*)
 
 
@@ -1154,7 +1210,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Application Insights*)
 
 
@@ -1258,7 +1314,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Git*)
 
 
@@ -1309,8 +1365,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 		"organizationName" -> devOpsOrgFromUrl[res["url"]], 
 		"projectId" -> devOpsProjectIdFromUrl[res["url"]],
 		"repositoryId" -> getIdKeyValue[res["url"],"repositories/"],
-		"refName" -> StringReplace[res["name"],"refs/"->""],
-		"objectId" -> res["objectId"]
+		"refName" -> StringReplace[res["name"],"refs/"->""]
 	|>],
 	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder 
@@ -1325,7 +1380,7 @@ azDevOpsGitRefList[authorizationHeader_String, azRefDevOpsPattern["devOps.git.co
 AppendTo[relations, {"devOps.git.ref"->"devOps.git.commit", {"azDevOpsGitRefs","azDevOpsGitRefList"}}];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Commits*)
 
 
@@ -1391,16 +1446,16 @@ azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
 ];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Build*)
 
 
 (* ::Subsubsection::Closed:: *)
-(*Build definition*)
+(*Definition*)
 
 
 <|
-	"azType"->"devOps.buildDefinition",
+	"azType"->"devOps.build.definition",
 	"nameSingular"->"BuildDefinition",
 	"namePlural"->"BuildDefinitions",
 	"panelIcon"-> icons["devOps.pipeline"],
@@ -1421,7 +1476,70 @@ azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsection:: *)
+(* ::Subsubsection::Closed:: *)
+(*Build*)
+
+
+<|
+	"azType"->"devOps.build.run",
+	"nameSingular"->"BuildRun",
+	"namePlural"->"BuildRuns",
+	"panelIcon"-> icons["devOps.pipeline"],
+	"panelLabelFunc"-> Function[{refData}, (refData["repositoryName"] /. _Missing ->"" ) <> "  :  " <> refData["buildNumber"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds?view=azure-devops-rest-6.1",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/APIs/_build/results?buildId=`buildId`&view=results",
+	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/build/builds/`buildId`?api-version=6.1-preview.6",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/build/builds?api-version=6.1-preview.6",
+	"listFilter" -> azRefDevOpsPattern["devOps.project"],
+	"parentAzType" -> "devOps.project",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"organizationName" -> devOpsOrgFromUrl[res["url"]],  
+		"projectId" -> devOpsProjectIdFromUrl[res["url"]],
+		"buildId" -> res["id"],
+		"repositoryName" -> res["repository","name"],
+		"buildNumber" -> res["buildNumber"]
+	|>],
+	"searchFields" -> {"buildNumber","id","repositoryName"}
+|> // devOpsDefaultOperationsBuilder
+
+
+(* ::Subsubsection::Closed:: *)
+(*Artifacts*)
+
+
+<|
+	"azType"->"devOps.build.artifact",
+	"nameSingular"->"BuilddArtifact",
+	"namePlural"->"BuildArtifacts",
+	"panelIcon"-> icons["devOps.pipeline"],
+	"panelLabelFunc"-> Function[{refData}, refData["artifactName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/build/artifacts?view=azure-devops-rest-6.1",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_build/results?buildId=`buildI`d&view=artifacts&type=publishedArtifacts",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/build/builds/`buildId`/artifacts?api-version=6.1-preview.5",
+	"listFilter" -> azRefDevOpsPattern["devOps.build.run"],
+	"parentAzType" -> "devOps.build.run",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"organizationName" -> devOpsOrgFromUrl[res["resource","url"]],  
+		"projectId" -> devOpsProjectIdFromUrl[res["resource","url"]],
+		"artifactId" -> res["id"],
+		"artifactName" -> res["name"],
+		"artifactTyoe" -> res["resource","type"],
+		"downloadUrl" ->res["resource","downloadUrl"]
+	|>],
+	"searchFields" -> {"buildNumber","id","repositoryName"}
+|> // devOpsDefaultOperationsBuilder
+
+azDownload[auth_, azRefDevOpsPattern["devOps.build.artifact"]] := 
+	azDownload[auth, ref, FileNameJoin[{ $HomeDirectory,"Downloads",ref["artifactName"]<>".zip"}]];
+
+azDownload[auth_, azRefDevOpsPattern["devOps.build.artifact"], file_String] := 
+	azDownload[auth, ref["downloadUrl"], file];
+	
+azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
+	azFileNames[auth, ref["downloadUrl"]];
+
+
+(* ::Subsection::Closed:: *)
 (*Release*)
 
 
@@ -1460,9 +1578,9 @@ azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
 
 
 <|
-	"azType"->"devOps.release",
-	"nameSingular"->"Release",
-	"namePlural"->"Releases",
+	"azType"->"devOps.release.run",
+	"nameSingular"->"ReleaseRun",
+	"namePlural"->"ReleaseRuns",
 	"panelIcon"-> icons["devOps.pipeline"],
 	"panelLabelFunc"-> Function[{refData}, refData["releaseDefinition"] <> "/" <> ToString@refData["releaseName"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/release/releases?view=azure-devops-rest-6.0",
@@ -1481,13 +1599,13 @@ azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
 	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
 
-azDevOpsReleaseCreate[authorizationHeader_String, azRefDevOpsPattern["devOps.releaseDefinition"]] :=
-	azDevOpsReleaseCreate[authorizationHeader, ref, <| "definitionId" -> refData["definitionId"] |>]
+azDevOpsReleaseRunCreate[authorizationHeader_String, azRefDevOpsPattern["devOps.releaseDefinition"]] :=
+	azDevOpsReleaseRunCreate[authorizationHeader, ref, <| "definitionId" -> refData["definitionId"] |>]
 	
-azDevOpsReleaseStages[auth_String, azRefDevOpsPattern["devOps.release"]] := 
+azDevOpsReleaseRunStages[auth_String, azRefDevOpsPattern["devOps.release"]] := 
 	azInfo[auth, ref]["environments",All,{"id","name","status"}];
 	
-azDevOpsReleaseStageDeploy[auth_String, azRefDevOpsPattern["devOps.release"], stageId_Integer] := 
+azDevOpsReleaseRunStageDeploy[auth_String, azRefDevOpsPattern["devOps.release"], stageId_Integer] := 
 	azHttpPatch[
 		auth,
 		StringTemplate["https://vsrm.dev.azure.com/`organizationName`/`projectId`/_apis/Release/releases/`releaseId`/environments/`environmentId`?api-version=6.0-preview.7"][<| refData, "environmentId"->stageId|>],
@@ -1555,6 +1673,123 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 			URLEncode/@refData
 		]]
 ]
+
+
+(* ::Subsection:: *)
+(*Artifacts*)
+
+
+(* ::Subsubsection:: *)
+(*Feed*)
+
+
+<|
+	"azType"->"devOps.artifact.feed",
+	"nameSingular"->"ArtifactFeed",
+	"namePlural"->"ArtifactFeeds",
+	"panelIcon"-> icons["devOps.artifact"],
+	"panelLabelFunc"-> Function[{refData}, refData["feedName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/artifacts/feed%20%20management?view=azure-devops-rest-6.1",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectName`/_packaging?_a=feed",
+	"getUrl"->"https://feeds.dev.azure.com/`organizationName`/_apis/packaging/feeds/`feedId`?api-version=6.0-preview.1",
+	"listUrl" -> "https://feeds.dev.azure.com/`organizationName`/_apis/packaging/feeds?api-version=6.0-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.organization"],
+	"parentAzType" -> "devOps.organization",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"organizationName" -> devOpsOrgFromUrl[res["url"]],  
+		"feedId" -> res["id"],
+		"feedName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
+
+
+
+(* ::Subsubsection:: *)
+(*Packages*)
+
+
+<|
+	"azType"->"devOps.artifact.package",
+	"nameSingular"->"ArtifactPackage",
+	"namePlural"->"ArtifactPackages",
+	"panelIcon"-> icons["devOps.artifact"],
+	"panelLabelFunc"-> Function[{refData}, "(" <> refData["packageType"] <> ") " <> refData["packageName"] ],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/artifacts/feed%20%20management?view=azure-devops-rest-6.2",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectName`/_packaging?_a=feed",
+	"getUrl"->"https://feeds.dev.azure.com/`organizationName`/_apis/packaging/Feeds/`feedId`/packages/`packageId`?api-version=6.0-preview.1",
+	"listUrl" -> "https://feeds.dev.azure.com/`organizationName`/`projectName`/_apis/packaging/Feeds/`feedId`/packages?api-version=6.0-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.artifact.feed"],
+	"parentAzType" -> "devOps.artifact.feed",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"organizationName" -> devOpsOrgFromUrl[res["url"]],  
+		"feedId" -> getIdKeyValue[res["url"],"feeds/"],
+		"packageName" -> res["normalizedName"],
+		"packageId" -> res["id"],
+		"packageType" -> res["protocolType"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
+
+azFileNames[auth_, azRefDevOpsPattern["devOps.artifact.package"]] := Module[
+	{latestVersion},
+	latestVersion = azDevOpsArtifactPackageVersionList[auth,ref][SelectFirst[#isLatest&],"azRef"];
+	azFileNames[auth,latestVersion]
+]
+
+azDownload[authorizationHeader_String, azRefDevOpsPattern["devOps.artifact.package"],args___] := Module[
+	{latestVersion},
+	latestVersion = azDevOpsArtifactPackageVersionList[authorizationHeader,ref][SelectFirst[#isLatest&],"azRef"];
+	azDownload[authorizationHeader,latestVersion,args]
+]	
+
+
+(* ::Subsubsection:: *)
+(*Package versions*)
+
+
+<|
+	"azType"->"devOps.artifact.version",
+	"nameSingular"->"ArtifactPackageVersion",
+	"namePlural"->"ArtifactPackageVersionss",
+	"panelIcon"-> icons["devOps.artifact"],
+	"panelLabelFunc"-> Function[{refData}, refData["packageName"]<>" : "<> refData["packageVersion"]],
+	"restDocumentation"-> "https://docs.microsoft.com/en-us/rest/api/azure/devops/artifacts/artifact%20%20details?view=azure-devops-rest-6.1",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectName`/_packaging?_a=feed",
+	"getUrl"->"https://feeds.dev.azure.com/`organizationName`/`projectName`/_apis/packaging/Feeds/`feedId`/Packages/`packageId`/versions/`packageVersion`?api-version=6.1-preview.1",
+	"listUrl" -> "https://feeds.dev.azure.com/`organizationName`/`projectName`/_apis/packaging/Feeds/`feedId`/Packages/`packageId`/versions?api-version=6.1-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.artifact.package"],
+	"parentAzType" -> "devOps.artifact.package",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"organizationName" -> devOpsOrgFromUrl[res["url"]],  
+		"feedId" -> getIdKeyValue[res["url"],"feeds/"],
+		"packageId" -> refData["packageId"],
+		"packageName" -> refData["packageName"],
+		"packageVersion" -> res["normalizedVersion"]
+	|>],
+	"searchFields" -> {"normalizedVersion"}
+|> // devOpsDefaultOperationsBuilder;
+ 
+azFileNames[auth_, azRefDevOpsPattern["devOps.artifact.version"]] := Module[
+	{tempDir,files},
+	tempDir = FileNameJoin[{$TemporaryDirectory,ToString@CreateUUID[]}];
+	azDownload[auth, ref, tempDir];
+	files=FileNames[All, tempDir, Infinity];
+	DeleteDirectory[tempDir,DeleteContents->True];
+	StringReplace[#,tempDir :> "", IgnoreCase->True ]& /@ files
+]
+	
+azDownload[auth_, azRefDevOpsPattern["devOps.artifact.version"]] := 
+	azDownload[auth, ref, FileNameJoin[{ $HomeDirectory,"Downloads",ref["packageName"]<>"_"<>ref["packageVersion"]}]];
+
+azDownload[_String, azRefDevOpsPattern["devOps.artifact.version"], path_String] :=
+	RunProcess[{
+		$azExe, "artifacts", "universal", "download",
+		"--organization","https://dev.azure.com/"<>refData["organizationName"],
+		"--feed", refData["feedId"],
+		"--name", refData["packageName"], 
+		"--version",refData["packageVersion"],
+		"--path",path}] /. KeyValuePattern["ExitCode" -> 0] -> path
 
 
 (* ::Section::Closed:: *)

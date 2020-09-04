@@ -32,7 +32,6 @@ azHttpDelete;
 azShellGetToken;
 azRef;
 azCreateAzRef;
-azParseRefFromId;
 azInfo;
 azDelete;
 azUpdate;
@@ -123,11 +122,14 @@ azDevOpsGitCommitList;
 azDevOpsGitCommitSearch:
 azDevOpsGitCommitGraph;
 azDevOpsGitCommitPlot;
+azDevOpsGitFolders;
+azDevOpsGitFiles;
 
 azDevOpsBuildDefinitions;
 azDevOpsBuildDefinitionCreate;
 azDevOpsBuildDefinitionList;
 azDevOpsBuildDefinitionSearch;
+azDevOpsBuildDefinitionProcessFile;
 
 azDevOpsBuildRuns;
 azDevOpsBuildRunList;
@@ -189,11 +191,11 @@ devOpsSearchBuilder;
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Core*)
 
 
@@ -234,12 +236,6 @@ azShellGetToken[subscriptionId_String] := RunProcess[{$azExe, "account", "get-ac
 
 toIso8601[{from_,to_}] := toIso8601@from<>"/"<>toIso8601@to;
 toIso8601[date_DateObject] := DateString[DateObject[date,TimeZone->"Zulu"],"ISODateTime"]<>"Z";
-
-azParseRefFromId[id_String] := StringCases[ToLowerCase@id,
-	"/subscriptions/" ~~ subscription:(Except["/"]..) ~~
-	"/resourcegroups/"~~resourcegroups:(Except["/"]..) :> 
-	<| "subscriptionId" -> subscription , "resourceGroupName" -> resourcegroups |>
-] /. {v_} :> v;
 
 azHttpGetPaged[auth_ ,args___] := azHttpGet[auth, args] // (pageData[auth, #] /. l_List :> Dataset@l) & 
 
@@ -314,7 +310,7 @@ azHttpPatch[authorizationHeader_String,  url_String, data_Association] := Module
 	azParseRestResponde@res
 ]
 
-azDownload[authorizationHeader_String,  url_String, file_String] := Module[
+azDownload[authorizationHeader_String,  url_String] := Module[
 	{res, req},
 	req = HTTPRequest[url, <|
 		Method -> "GET",
@@ -324,8 +320,14 @@ azDownload[authorizationHeader_String,  url_String, file_String] := Module[
 	Sow[req];
 	res = URLRead@req;
 	Sow[res];
-	BinaryWrite[file,res["BodyByteArray"]];
-	Close[file]
+	res["BodyByteArray"]
+]
+
+azDownload[authorizationHeader_String,  url_String, file_String] := Module[{},
+	azDownload[authorizationHeader,url] /. b_BodyByteArray :> (
+		BinaryWrite[file,b];
+		Close[file]
+	)
 ]
 
 azFileNames[authorizationHeader_String,  url_String] := Module[
@@ -516,7 +518,7 @@ azureDefaultOperationsBuilder[cfg_Association] := (
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*DevOps*)
 
 
@@ -1314,15 +1316,15 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Git*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Repositories*)
 
 
-<|
+ <|
 	"azType"->"devOps.git.repository",
 	"nameSingular"->"GitRepository",
 	"namePlural"->"GitRepositories",
@@ -1331,7 +1333,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/git/repositories?view=azure-devops-rest-6.0",
 	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_git/`repositoryName`",
 	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`?api-version=6.0-preview.1",
-	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories?api-version=6.0-preview.1",
+	"listrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories?api-version=6.0-preview.1",
 	"listFilter" -> azRefDevOpsPattern["devOps.project"],
 	"parentAzType" -> "devOps.project",
 	"listResultKeysFunc" -> Function[{res}, <| 
@@ -1341,11 +1343,10 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 		"repositoryId" -> res["id"]
 	|>],
 	"searchFields" -> {"name"}
-|> // devOpsDefaultOperationsBuilder
+|> // devOpsDefaultOperationsBuilder;
 
 
-
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Refs*)
 
 
@@ -1365,7 +1366,14 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 		"organizationName" -> devOpsOrgFromUrl[res["url"]], 
 		"projectId" -> devOpsProjectIdFromUrl[res["url"]],
 		"repositoryId" -> getIdKeyValue[res["url"],"repositories/"],
-		"refName" -> StringReplace[res["name"],"refs/"->""]
+		"refName" -> StringReplace[res["name"],"refs/"->""],
+		"commit" -> azRef[<|
+			"azType" -> "devOps.git.commit",
+			"organizationName" -> devOpsOrgFromUrl[res["url"]], 
+			"projectId" -> devOpsProjectIdFromUrl[res["url"]],
+			"repositoryId" -> getIdKeyValue[res["url"],"repositories/"],			
+			"commitId" -> res["objectId"]
+		|>]
 	|>],
 	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder 
@@ -1446,11 +1454,89 @@ azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
 ];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsubsection::Closed:: *)
+(*Folders*)
+
+
+cfg = <|
+	"azType"->"devOps.git.folder",
+	"panelIcon"-> icons["devOps.repository"],
+	"panelLabelFunc"-> Function[{refData},refData["path"]]
+|>;
+devOpsPanelInfoBuilder[cfg]
+
+azDevOpsGitFolders[auth_, azRefDevOpsPattern["devOps.git.commit"]] := Module[
+	{treeId, rootFolder},
+	treeId = azInfo[auth, ref] /. ds_Dataset :> ds["treeId"];
+	rootFolder = azCreateAzRef[ref, "devOps.git.folder",<|"treeId"->treeId, "path" -> "/"|>];
+	{rootFolder} ~Join~ azDevOpsGitFolders[auth, rootFolder]
+];
+
+azDevOpsGitFolders[auth_, azRefDevOpsPattern["devOps.git.folder"]] := 
+	azHttpGet[
+		auth,
+		StringTemplate["https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/trees/`treeId`?api-version=6.1-preview.1"]
+			[refData]
+	]  /. res_Dataset :> With[
+		{folders = Normal@res["treeEntries",Select[#["gitObjectType"]=="tree"&],azRef[<|
+			"azType" -> "devOps.git.folder",
+			"organizationName" -> devOpsOrgFromUrl[#["url"]], 
+			"projectId" -> devOpsProjectIdFromUrl[#["url"]],
+			"repositoryId" -> getIdKeyValue[#["url"],"repositories/"],
+			"treeId" -> #["objectId"],
+			"path" -> ref["path"] <> #["relativePath"]<>"/"
+		|>] &]},
+		folders ~ Join ~ Flatten[azDevOpsGitFolders[auth,#]& /@ folders]
+	];
+AppendTo[relations, {"devOps.git.commit"->"devOps.git.folder", {"azDevOpsGitFolders"}}];
+
+
+(* ::Subsubsection:: *)
+(*Files*)
+
+
+cfg = <|
+	"azType"->"devOps.git.file",
+	"panelIcon"-> icons["devOps.repository"],
+	"panelLabelFunc"-> Function[{refData},refData["path"]]
+|>;
+devOpsPanelInfoBuilder[cfg]
+
+azDevOpsGitFiles[auth_, folders:{(_azRef)...}] :=
+	Flatten[azDevOpsGitFiles[auth, #]& /@ folders]
+
+azDevOpsGitFiles[auth_, azRefDevOpsPattern["devOps.git.folder"]] := 
+	azHttpGet[
+		auth,
+		StringTemplate["https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/trees/`treeId`?api-version=6.1-preview.1"]
+			[refData]
+	]  /. res_Dataset :> Normal@res["treeEntries",Select[#["gitObjectType"]=="blob"&],azRef[<|
+			"azType" -> "devOps.git.file",
+			"organizationName" -> devOpsOrgFromUrl[#["url"]], 
+			"projectId" -> devOpsProjectIdFromUrl[#["url"]],
+			"repositoryId" -> getIdKeyValue[#["url"],"repositories/"],
+			"objectId" -> #["objectId"],
+			"path" -> ref["path"] <> #["relativePath"]
+		|>] &]; 
+AppendTo[relations, {"devOps.git.folder"->"devOps.git.file", {"azDevOpsGitFiles"}}];
+
+azDevOpsGitFiles[auth_, azRefDevOpsPattern["devOps.git.commit"]] := 
+	Flatten[azDevOpsGitFiles[auth,#] & /@ azDevOpsGitFolders[auth, ref]];
+AppendTo[relations, {"devOps.git.commit"->"devOps.git.file", {"azDevOpsGitFiles"}}];
+
+azDownload[auth_, azRefDevOpsPattern["devOps.git.file"]] := 
+	azDownload[
+		auth, 
+		StringTemplate["https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/blobs/`objectId`?api-version=6.1-preview.1"]
+			[URLEncode /@ Normal[ref]]
+	];
+
+
+(* ::Subsection:: *)
 (*Build*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Definition*)
 
 
@@ -1473,7 +1559,45 @@ azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
 		"name" -> res["name"]
 	|>],
 	"searchFields" -> {"name"}
-|> // devOpsDefaultOperationsBuilder
+|> // devOpsDefaultOperationsBuilder;
+
+
+
+azDevOpsGitRepositoryList[auth_, azRefDevOpsPattern["devOps.build.definition"]] := Module[
+	{def},
+	def = azInfo[auth, ref];
+	def /. ds_Dataset :> azRef@Normal@ds["repository", <|
+		"azType" -> "devOps.git.repository",
+		"organizationName" -> devOpsOrgFromUrl[#url], 
+		"projectId" -> devOpsProjectIdFromUrl[#url],
+		"repositoryName" -> #name,
+		"repositoryId" -> #id 	
+	|> &] /. r_azRef :> Dataset@List@Normal@azInfo[auth, r]
+];
+AppendTo[relations, {"devOps.build.definition"->"devOps.git.repository", {"azDevOpsGitRepositories","azDevOpsGitRepositoryList"}}];
+
+
+azDevOpsGitRefList[auth_, azRefDevOpsPattern["devOps.build.definition"]] := Module[
+	{definition, defaultBranch, repo, refs},
+	definition = azInfo[auth, ref];
+	defaultBranch = StringReplace[definition["repository","defaultBranch"], "refs/"->""];
+	repo = azDevOpsGitRepositories[auth, ref] /. {v_} :> v; 
+	refs = azDevOpsGitRefs[auth, repo];
+	refs = Select[refs, StringMatchQ[#["refName"], defaultBranch , IgnoreCase->True]&] /. {v_} :> v;
+	Dataset@List@Normal@azInfo[auth, refs]
+];
+AppendTo[relations, {"devOps.build.definition"->"devOps.git.ref", {"azDevOpsGitRefs","azDevOpsGitRefList"}}];
+
+
+azDevOpsBuildDefinitionProcessFile[auth_, azRefDevOpsPattern["devOps.build.definition"]] := Module[
+	{gitRef, files, definition, yamlFile},
+	definition = azInfo[auth, ref];
+	gitRef = azDevOpsGitRefs[auth, ref] /. {v_} :> v;
+	files=azDevOpsGitFiles[auth, gitRef["commit"]];
+	yamlFile = definition["process","yamlFilename"];
+	Select[files, StringContainsQ[#["path"], yamlFile] & ] /. {v_} :> v
+];
+AppendTo[relations, {"devOps.build.definition"->"devOps.git.file", {"azDevOpsBuildDefinitionProcessFile"}}];
 
 
 (* ::Subsubsection::Closed:: *)
@@ -1503,7 +1627,7 @@ azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Artifacts*)
 
 
@@ -1675,11 +1799,11 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Artifacts*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Feed*)
 
 
@@ -1705,7 +1829,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Packages*)
 
 
@@ -1744,7 +1868,7 @@ azDownload[authorizationHeader_String, azRefDevOpsPattern["devOps.artifact.packa
 ]	
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Package versions*)
 
 

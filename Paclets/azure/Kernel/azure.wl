@@ -46,7 +46,7 @@ azDownloadFile;
 azDownloadByteArray;
 azFileNames;
 azParent;
-
+yamlImport;
 
 azSetUiPortalPrefix;
 azGetUiPortalPrefix;
@@ -133,6 +133,7 @@ azDevOpsBuildDefinitions;
 azDevOpsBuildDefinitionCreate;
 azDevOpsBuildDefinitionList;
 azDevOpsBuildDefinitionSearch;
+azDevOpsBuildDefinitionProcess;
 azDevOpsBuildDefinitionProcessFile;
 
 azDevOpsBuildRuns;
@@ -216,6 +217,18 @@ If[MatchQ[value,pattern],
 	]
 ];
 assertPattern[pattern_] := OperatorApplied[assertPattern][pattern];
+
+
+(* RunProcess[{"pip","install","pyyaml"}] *)
+
+yamlImport[s_String] := 
+	ExternalEvaluate[
+		"Python",
+		StringTemplate["
+import yaml
+yaml.load(\"\"\"``\"\"\")
+		"][s]
+];
 
 
 relations={};
@@ -1675,8 +1688,15 @@ azDevOpsBuildDefinitionProcessFile[auth_, azRefDevOpsPattern["devOps.build.defin
 AppendTo[relations, {"devOps.build.definition"->"devOps.git.file", {"azDevOpsBuildDefinitionProcessFile"}}];
 
 
-(* ::Subsubsection::Closed:: *)
-(*Build*)
+azDevOpsBuildDefinitionProcess[auth_, azRefDevOpsPattern["devOps.build.definition"]] :=
+	azDevOpsBuildDefinitionProcessFile[auth, ref] /. 
+		f_azRef :> azDownloadByteArray[auth,f] /.
+		b_ByteArray :> (ByteArrayToString[b] // yamlImport) /. 
+		a_Association :> Dataset@a;
+
+
+(* ::Subsubsection:: *)
+(*Run*)
 
 
 <|
@@ -1700,7 +1720,13 @@ AppendTo[relations, {"devOps.build.definition"->"devOps.git.file", {"azDevOpsBui
 	|>],
 	"searchFields" -> {"buildNumber","id","repositoryName"},
 	"newRefKeys" -> {"buildNumber","repositoryName","buildId"}
-|> // devOpsDefaultOperationsBuilder
+|> // devOpsDefaultOperationsBuilder;
+
+
+azDevOpsBuildRunList[auth_, azRefDevOpsPattern["devOps.build.definition"]] :=
+	azDevOpsBuildRunList[auth, azParent@ref][Select[#definition["id"] == ref["definitionId"] &] ];
+	
+AppendTo[relations, {"devOps.build.definition"->"devOps.build.run", {"azDevOpsBuildRuns","azDevOpsBuildRunList"}}];
 
 
 (* ::Subsubsection:: *)
@@ -1709,7 +1735,7 @@ AppendTo[relations, {"devOps.build.definition"->"devOps.git.file", {"azDevOpsBui
 
 <|
 	"azType"->"devOps.build.artifact",
-	"nameSingular"->"BuilddArtifact",
+	"nameSingular"->"BuildArtifact",
 	"namePlural"->"BuildArtifacts",
 	"panelIcon"-> icons["devOps.pipeline"],
 	"panelLabelFunc"-> Function[{refData}, refData["artifactName"]],
@@ -1936,7 +1962,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 	|>],
 	"searchFields" -> {"name"},
 	"newRefKeys" -> {"packageType","packageId","packageName"}
-|> // devOpsDefaultOperationsBuilder
+|> // devOpsDefaultOperationsBuilder;
 
 azFileNames[auth_, azRefDevOpsPattern["devOps.artifact.package"]] := Module[
 	{latestVersion},

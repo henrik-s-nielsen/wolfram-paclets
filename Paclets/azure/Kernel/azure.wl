@@ -198,7 +198,7 @@ Begin["`Private`"];
 (*Base*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Core*)
 
 
@@ -440,7 +440,7 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Azure*)
 
 
@@ -513,7 +513,7 @@ azureRelationBuilder[cfg:KeyValuePattern[{
 	"parentAzType" -> _String,
 	"namePlural" -> _String
 }]] := TemplateObject[Hold[
-AppendTo[relations, {TemplateSlot["parentAzType"]->TemplateSlot["azType"], {"az"<>TemplateSlot["namePlural"],"az"<>TemplateSlot["nameSingular"]<>"List"}}]
+AppendTo[relations, {TemplateSlot["parentAzType"]->TemplateSlot["azType"], {"az"<>TemplateSlot["namePlural"],"az"<>TemplateSlot["nameSingular"]<>"List"}}];
 ]][cfg] // ReleaseHold;
 
 azureRestDocumentationBuilder[cfg:KeyValuePattern[{
@@ -538,21 +538,37 @@ Symbol["az"<>TemplateSlot["nameSingular"]<>"Search"][auth_String, TemplateSlot["
 	]]
 ]][cfg] // ReleaseHold
 
-azureDefaultOperationsBuilder[cfg_Association] := (
-	azurePanelInfoBuilder[cfg];
+azureParentBuilder[cfg:KeyValuePattern[{
+	"azType"->_String,
+	"parentAzType"->_String,
+	"newRefKeys" -> _List
+}]] := TemplateObject[Hold[
+azParent[azRefDevOpsPattern[TemplateSlot["azType"]]] :=
+	azCreateParentAzRef[ref, TemplateSlot["parentAzType"],TemplateSlot["newRefKeys"]];
+	AppendTo[relations, {TemplateSlot["azType"]->TemplateSlot["parentAzType"], {"azParent"}}];
+]][cfg] // ReleaseHold
+
+
+azureDefaultOperationsBuilder[cfg_Association] := Module[
+	{res = {}},
+	azurePanelInfoBuilder[cfg] // AppendTo[res,#] &;
 	If[KeyExistsQ[cfg, "uiUrl"],
 		azureOpenUiBuilder[cfg],
-		Null];
-	azureInfoBuilder[cfg];
-	azureListBuilder[cfg];
-	azureRestDocumentationBuilder[cfg];
+		Null] // AppendTo[res,#] &;
+	azureInfoBuilder[cfg] // AppendTo[res,#] &;
+	azureListBuilder[cfg] // AppendTo[res,#] &;
+	azureRestDocumentationBuilder[cfg] // AppendTo[res,#] &;
 	If[KeyExistsQ[cfg, "searchFields"],
 		azureSearchBuilder[cfg],
-		Null];
+		Null] // AppendTo[res,#] &;
 	If[KeyExistsQ[cfg, "parentAzType"],
 		azureRelationBuilder[cfg],
-		Null];
-);
+		Null] // AppendTo[res,#] &;
+	If[KeyExistsQ[cfg, "newRefKeys"],
+		devOpsParentBuilder[cfg],
+		Null] // AppendTo[res,#] &;
+	res
+];
 
 
 
@@ -836,22 +852,32 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 *)
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Azure kubernetes service*)
 
 
-<|
-	"name"-> {"Aks","Cluster"},
-	"idTemplate" -> "/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ContainerService/managedClusters/`clusterName`",
-	"getUrl" -> "https://management.azure.com`id`?api-version=2020-06-01",
+cfg = <|
+	"azType"->"azure.Aks.Cluster",
+	"nameSingular"->"AksCluster",
+	"namePlural"->"AksClusters",
+	"panelIcon"-> icons["azure.aks"],
+	"panelLabelFunc"-> Function[{refData}, refData["clusterName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/aks/managedclusters",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ContainerService/managedClusters/`clusterName`/overview",
+	"getUrl"-> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ContainerService/managedClusters/`clusterName`?api-version=2020-06-01",
 	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.ContainerService/managedClusters?api-version=2020-06-01",
-	"listFilter" -> "azure.subscription",
-	"uiUrl"->"/resource`id`/overview",
-	"azType"->"azure.Aks/cluster",
-	"azIcon"->"azure.aks",
-	"azLabel"->"refData[\"clusterName\"]",
-	"restDocumentation" -> "https://docs.microsoft.com/en-us/rest/api/aks/managedclusters"
-|> // stdAzureResource //ToExpression
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"clusterName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"clusterName"}
+|>;
+
+azureDefaultOperationsBuilder[cfg];
 
 
 (* ::Section::Closed:: *)
@@ -903,10 +929,11 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"workspaceName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"workspaceName"}
 |>;
 
-azureDefaultOperationsBuilder[cfg];
+azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Subsection::Closed:: *)
@@ -1086,7 +1113,8 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"serviceName"}
 |>;
 
 azureDefaultOperationsBuilder[cfg];
@@ -1114,7 +1142,8 @@ cfg = <|
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"loggerName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"loggerName"}
 |>;
 
 
@@ -1144,7 +1173,8 @@ cfg = <|
 		"subscriptionName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"subscriptionName"}
 |>;
 
 
@@ -1174,7 +1204,8 @@ cfg = <|
 		"productName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"productName"}
 |>;
 
 
@@ -1204,11 +1235,9 @@ cfg = <|
 		"apiName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"apiName"}
 |>;
-
-
-
 azureDefaultOperationsBuilder[cfg];
 
 
@@ -1236,9 +1265,9 @@ cfg = <|
 		"schemaName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"schemaName"}
 |>;
-
 azureDefaultOperationsBuilder[cfg];
 
 
@@ -1255,21 +1284,21 @@ cfg = <|
 	"nameSingular"-> "EventHubNamespace",
 	"namePlural"-> "EventHubNamespaces",
 	"panelIcon"-> icons["azure.eventHub"],
-	"panelLabelFunc"-> Function[{refData}, refData["namespaceName"]],
+	"panelLabelFunc"-> Function[{refData}, refData["namespace"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/eventhub/event-hubs-runtime-rest",
 	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.EventHub/namespaces",
-	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionName`/resourceGroups/`resourceGroupName`/providers/Microsoft.EventHub/namespaces/`namespaceName`?api-version=2018-01-01-preview",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionName`/resourceGroups/`resourceGroupName`/providers/Microsoft.EventHub/namespaces/`namespace`?api-version=2018-01-01-preview",
 	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.EventHub/namespaces?api-version=2018-01-01-preview",
 	"listFilter" -> azRefAzurePattern["azure.subscription"],
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
-		"namespaceName" -> res["name"]
+		"namespace" -> res["name"]
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"namespace"}
 |>;
-
 azureDefaultOperationsBuilder[cfg];
 
 
@@ -1298,13 +1327,14 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"componentName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"componentName"}
 |>;
 
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*DevOps*)
 
 
@@ -1379,11 +1409,11 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Git*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Repositories*)
 
 
@@ -1418,7 +1448,7 @@ azDevOpsGitClone[auth_, azRefDevOpsPattern["devOps.git.repository"], folder_Stri
 ];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Refs*)
 
 
@@ -1567,7 +1597,7 @@ azDevOpsGitFolders[auth_, azRefDevOpsPattern["devOps.git.folder"]] :=
 AppendTo[relations, {"devOps.git.commit"->"devOps.git.folder", {"azDevOpsGitFolders"}}];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Files*)
 
 
@@ -1608,11 +1638,11 @@ azDownloadByteArray[auth_, azRefDevOpsPattern["devOps.git.file"]] :=
 	];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Build*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Definition*)
 
 
@@ -1695,7 +1725,7 @@ azDevOpsBuildDefinitionProcess[auth_, azRefDevOpsPattern["devOps.build.definitio
 		a_Association :> Dataset@a;
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Run*)
 
 
@@ -1729,7 +1759,7 @@ azDevOpsBuildRunList[auth_, azRefDevOpsPattern["devOps.build.definition"]] :=
 AppendTo[relations, {"devOps.build.definition"->"devOps.build.run", {"azDevOpsBuildRuns","azDevOpsBuildRunList"}}];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Artifacts*)
 
 
@@ -1842,7 +1872,7 @@ azDevOpsReleaseRunStageDeploy[auth_String, azRefDevOpsPattern["devOps.release"],
 	]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Graph*)
 
 
@@ -1906,7 +1936,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Artifacts*)
 
 
@@ -1937,7 +1967,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Packages*)
 
 
@@ -1977,7 +2007,7 @@ azDownloadByteArray[authorizationHeader_String, azRefDevOpsPattern["devOps.artif
 ]	
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Package versions*)
 
 

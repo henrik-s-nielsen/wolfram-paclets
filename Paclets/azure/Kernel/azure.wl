@@ -61,11 +61,13 @@ azAksClusterList;
 (* Log analytics *)
 azLogAnalyticsTableHelp;
 azLogAnalyticsTableStatistics;
-azLogAnalyticsQuery;
 azLogAnalyticsWorkspaceMetadata;
 azLogAnalyticsWorkspaces;
 azLogAnalyticsWorkspaceList;
 azLogAnalyticsWorkspaceSearch;
+
+azLogQuery;
+
 (* Log analytics - kubernetes*)
 azLogAnalyticsKubeContainerShortNames;
 azLogAnalyticsKubeContainerIdToShortName;
@@ -189,6 +191,7 @@ panelInfo;
 subscriptionIdFromId;
 resourceGroupNameFromId;
 functionCatch;
+refToAzureId;
 
 
 Begin["`Private`"];
@@ -444,6 +447,9 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 (*Azure*)
 
 
+refToAzureId[auth_, ref_azRef] := azInfo[auth,ref] /. ds_Dataset :> ds["id"];
+
+
 subscriptionIdFromId[id_String] := 
 	StringCases[id,StartOfString~~"/subscriptions/"~~sub:(Except["/"]..) :> sub, IgnoreCase->True] /. {v_} :> v;
 resourceGroupNameFromId[id_String] := 
@@ -572,7 +578,7 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*DevOps*)
 
 
@@ -852,7 +858,7 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 *)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Azure kubernetes service*)
 
 
@@ -880,7 +886,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Log analytics*)
 
 
@@ -892,7 +898,7 @@ azureDefaultOperationsBuilder[cfg];
 (*https://docs.microsoft.com/en-us/azure/azure-monitor/reference/*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Tables*)
 
 
@@ -951,39 +957,67 @@ azLogAnalyticsWorkspaceMetadata[
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Query*)
 
 
-azLogAnalyticsQuery[
+azLogQuery[
 	authorizationHeader_String,
-	workspace_azRef, 
-	query_String
-] := azLogAnalyticsQuery[authorizationHeader, workspace, query, {DateObject[{1800}],DateObject[{3000}]}];
-azLogAnalyticsQuery[
-	authorizationHeader_String,
-	workspace_azRef,
-	query_String,
-	Null
-] := azLogAnalyticsQuery[authorizationHeader, workspace, query];
-azLogAnalyticsQuery[
-	authorizationHeader_String,
-	azRef[resource:KeyValuePattern[{
+	azRef[refData:KeyValuePattern[{
 		"azType" -> "azure.logAnalytics.Workspace"
 	}]], 
 	query_String,
+	args___
+] := azLogAnalyticsQuery[
+	authorizationHeader,
+	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`/api/query?api-version=2017-01-01-preview"]
+		[refData],
+	query,
+	args
+] // logAnalyticDS;		
+
+azLogQuery[
+	auth_String,
+	ref_azRef, 
+	query_String,
+	args___
+] := azLogAnalyticsQuery[
+	auth,
+	"https://management.azure.com" <>
+		refToAzureId[auth, ref] <> 
+		"/providers/microsoft.insights/logs?api-version=2018-03-01-preview",
+	query,
+	args
+] // logResourceDS;	
+ 
+azLogQuery[
+	authorizationHeader_String,
+	url_String, 
+	query_String
+] := azLogAnalyticsQuery[authorizationHeader, url, query, {DateObject[{1800}],DateObject[{3000}]}];
+
+azLogQuery[
+	authorizationHeader_String,
+	url_String, 
+	query_String,
 	dateRange:{from_DateObject,to_DateObject}
-] := Module[ {url,req,res,body},
+] := Module[ {req,res,body},
 	Sow[{query,dateRange}];
-	url = StringTemplate[
-			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`/api/query?api-version=2017-01-01-preview"][resource];
 	body = ExportString[<|"query"->query, "timespan" -> toIso8601[dateRange]|>,"RawJSON"];
 	req = HTTPRequest[url, <| Method->"POST", "Body"->body, "ContentType"->"application/json", "Headers"->{"Authorization"-> authorizationHeader} |>];
 	Sow[req];
 	res = URLRead@req;
 	Sow[res];
-	azParseRestResponde@res /. ds_Dataset :> logAnalyticDS[ds]
+	azParseRestResponde[res] 
 ]
+
+logResourceFieldValue["long",v_] := v;
+logResourceFieldValue["string", v_String] := v;
+logResorceField[col_, valueStr_] := col["name"]->logResourceFieldValue[col["type"],valueStr];
+logResourceRow[columns_List,rows_List] := MapThread[logResorceField,{columns,rows}] // Association;
+logResourceTable[columns_List,rows_List] := logResourceRow[columns,#]& /@ rows;
+logResourceDS[ds_Dataset] := #name -> logResourceTable[#columns, #rows]& /@ Normal[ds["tables"]] // Association // Dataset;
+
 
 logAnalyticFieldValue[_,Null] := Null;
 logAnalyticFieldValue["SByte",False] := False;
@@ -1060,20 +1094,26 @@ azLogAnalyticsKubeSearchContainerLogs[auth_,ref_, str_String, dateRange_: Null] 
 (*Monitor*)
 
 
+(* ::Subsection::Closed:: *)
+(*Activity log*)
+
+
+azActivityLog[auth_, ref_azRef] := 
+	azActivityLog[auth, ref, {Now-Quantity[89,"Days"], Now}];
+
 azActivityLog[
 	authorizationHeader_String,
 	ref:azRef[KeyValuePattern["azType" -> _String]],
-	dateRange:{_DateObject, _DateObject}
-] := Module[{},
-	azActivityLog[
-		authorizationHeader,
-		ref,
-		StringTemplate["
-			eventTimestamp ge '2014-07-16T04:36:37.6407898Z' 
-			and eventTimestamp le '2014-07-20T04:36:37.6407898Z' 
-			and resourceUri eq 'resourceURI'
-		"][refToIdUrl[ref]]
-	]
+	dateRange:{fromDate_DateObject, toDate_DateObject}
+] := azActivityLog[
+	authorizationHeader,
+	ref,
+	StringTemplate["eventTimestamp ge '`fromDate`' and eventTimestamp le '`toDate`' and resourceUri eq '`resourceUri`'"]
+		[<|
+			"fromDate" -> toIso8601@fromDate,
+			"toDate" -> toIso8601@toDate,
+			"resourceUri" -> refToAzureId[authorizationHeader, ref]
+		|>]
 ];
 
 

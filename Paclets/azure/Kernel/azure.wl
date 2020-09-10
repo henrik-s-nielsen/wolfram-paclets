@@ -11,6 +11,7 @@
 (* ::Text:: *)
 (*To do:*)
 (*- rename 	list to resource*)
+(*- remove: newRefKeys just reload*)
 
 
 (* ::Section:: *)
@@ -21,8 +22,6 @@ BeginPackage["azure`"];
 
 
 (* Base *)
-$azExe;
-azShellLogin;
 azHttpGet;
 azHttpGetPaged;
 azHttpPost;
@@ -48,9 +47,13 @@ azFileNames;
 azParent;
 yamlImport;
 
+(* UI portal setup *)
 azSetUiPortalPrefix;
 azGetUiPortalPrefix;
 
+(* Shell *)
+$azExe;
+azShellLogin;
 azShellGetSubscriptions;
 azShellGetSubscriptionList;
 
@@ -58,15 +61,23 @@ azShellGetSubscriptionList;
 azAksClusters;
 azAksClusterList;
 
+(* Monitor *)
+azActivityLog;
+azDiagnosticSettings;
+azLogProfiles;
+azDataCollectionRules;
+
 (* Log analytics *)
 azLogAnalyticsTableHelp;
 azLogAnalyticsTableStatistics;
-azLogAnalyticsWorkspaceMetadata;
 azLogAnalyticsWorkspaces;
 azLogAnalyticsWorkspaceList;
 azLogAnalyticsWorkspaceSearch;
 
+(* Log anlytics & resources - log query *)
 azLogQuery;
+azLogQueryInfo;
+azLogMetadata;
 
 (* Log analytics - kubernetes*)
 azLogAnalyticsKubeContainerShortNames;
@@ -95,6 +106,12 @@ azApiManagementApiSearch;
 azApiManagementApiSchemas;
 azApiManagementApiSchemaList;
 azApiManagementApiSchemaSearch;
+azApiManagementGateways;
+azApiManagementGatewayList;
+azApiManagementGatewaySearch;
+azApiManagementGatewayHostnames;
+azApiManagementGatewayHostnameList;
+azApiManagementGatewayHostnameSearch;
 
 (* Event Hubs *)
 azEventHubs;
@@ -102,19 +119,22 @@ azEventHubNamespaces;
 azEventHubNamespaceList;
 azEventHubNamespaceSearch;
 
-(* Monitor: activity log *)
-azActivityLog;
-
 (* Application Insight *)
 azAppInsightComponents;
 azAppInsightComponentList;
 azAppInsightComponentSearch;
 
-(* Azure DevOps *)
+(* Application Gateway *)
+azAppGateways;
+azAppGatewayList;
+azAppGatewaySearch;
+
+(* Azure DevOps - project *)
 azDevOpsProjects;
 azDevOpsProjectList;
 azDevOpsProjectSearch;
 
+(* Azure DevOps - git *)
 azDevOpsGitRepositories;
 azDevOpsGitRepositoryList;
 azDevOpsGitRepositorySearch;
@@ -131,24 +151,24 @@ azDevOpsGitCommitPlot;
 azDevOpsGitFolders;
 azDevOpsGitFiles;
 
+(* Azure DevOps - build pipeline *)
 azDevOpsBuildDefinitions;
 azDevOpsBuildDefinitionCreate;
 azDevOpsBuildDefinitionList;
 azDevOpsBuildDefinitionSearch;
 azDevOpsBuildDefinitionProcess;
 azDevOpsBuildDefinitionProcessFile;
-
 azDevOpsBuildRuns;
 azDevOpsBuildRunList;
 azDevOpsBuildRunSearch;
 azDevOpsBuildArtifacts;
 azDevOpsBuildArtifactList;
 
+(* Azure DevOps - release pipeline *)
 azDevOpsReleaseDefinitions;
 azDevOpsReleaseDefinitionCreate;
 azDevOpsReleaseDefinitionList;
 azDevOpsReleaseDefinitionSearch;
-
 azDevOpsReleaseRuns;
 azDevOpsReleaseRunCreate;
 azDevOpsReleaseRunList;
@@ -156,48 +176,34 @@ azDevOpsReleaseRunSearch;
 azDevOpsReleaseRunStages;
 azDevOpsReleaseRunStageDeploy;
 
+(* Azure DevOps - User and groups *)
 azDevOpsUsers;
 azDevOpsUserList;
 azDevOpsUserSearch;
-
 azDevOpsGroups;
 azDevOpsGroupList;
 azDevOpsGroupSearch;
 
+(* Azure DevOps - aritfacts *)
 azDevOpsArtifactFeeds;
 azDevOpsArtifactFeedList;
 azDevOpsArtifactFeedSearch;
-
 azDevOpsArtifactPackages;
 azDevOpsArtifactPackageList;
 azDevOpsArtifactPackageSearch;
-
 azDevOpsArtifactPackageVersions;
 azDevOpsArtifactPackageVersionList;
 azDevOpsAritfactPackageVersionSearch;
 
 
 (* temp *)
-azRefDevOpsPattern;
-azRefAzurePattern;
-getIdKeyValue;
-keyValuesFromId;
-refLabel;
-stdDevOpsResource;
-azOpenDevOpsUi;
-panelInfo;
-keyValueContainsQ;
-panelInfo;
-subscriptionIdFromId;
-resourceGroupNameFromId;
-functionCatch;
 refToAzureId;
 
 
 Begin["`Private`"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Base*)
 
 
@@ -443,7 +449,7 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Azure*)
 
 
@@ -886,7 +892,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Log analytics*)
 
 
@@ -898,7 +904,7 @@ azureDefaultOperationsBuilder[cfg];
 (*https://docs.microsoft.com/en-us/azure/azure-monitor/reference/*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Tables*)
 
 
@@ -919,7 +925,7 @@ azLogAnalyticsTableStatistics[authorizationHeader_String,ref_, dateRange:{_DateO
 
 
 cfg = <|
-	"azType"->"azure.logAnalytics.Workspace",
+	"azType"->"azure.logAnalytics.workspace",
 	"nameSingular"->"LogAnalyticsWorkspace",
 	"namePlural"->"LogAnalyticsWorkspaces",
 	"panelIcon"-> icons["azure.logAnalyticsWorkspace"],
@@ -946,92 +952,30 @@ azureDefaultOperationsBuilder[cfg]
 (*Meta data*)
 
 
-azLogAnalyticsWorkspaceMetadata[
+azLogMetadata[
 	authorizationHeader_String,
 	azRef[ref:KeyValuePattern[{
-		"azType" -> "azure.logAnalytics.Workspace"
+		"azType" -> "azure.logAnalytics.workspace"
 }]]] :=  azHttpGet[
 	authorizationHeader, 
 	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`/api/metadata?api-version=2017-01-01-preview"][ref]
 ]
 
-
-
-(* ::Subsection:: *)
-(*Query*)
-
-
-azLogQuery[
+azLogMetadata[
 	authorizationHeader_String,
-	azRef[refData:KeyValuePattern[{
-		"azType" -> "azure.logAnalytics.Workspace"
-	}]], 
-	query_String,
-	args___
-] := azLogAnalyticsQuery[
-	authorizationHeader,
-	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`/api/query?api-version=2017-01-01-preview"]
-		[refData],
-	query,
-	args
-] // logAnalyticDS;		
-
-azLogQuery[
-	auth_String,
-	ref_azRef, 
-	query_String,
-	args___
-] := azLogAnalyticsQuery[
-	auth,
-	"https://management.azure.com" <>
-		refToAzureId[auth, ref] <> 
-		"/providers/microsoft.insights/logs?api-version=2018-03-01-preview",
-	query,
-	args
-] // logResourceDS;	
- 
-azLogQuery[
-	authorizationHeader_String,
-	url_String, 
-	query_String
-] := azLogAnalyticsQuery[authorizationHeader, url, query, {DateObject[{1800}],DateObject[{3000}]}];
-
-azLogQuery[
-	authorizationHeader_String,
-	url_String, 
-	query_String,
-	dateRange:{from_DateObject,to_DateObject}
-] := Module[ {req,res,body},
-	Sow[{query,dateRange}];
-	body = ExportString[<|"query"->query, "timespan" -> toIso8601[dateRange]|>,"RawJSON"];
-	req = HTTPRequest[url, <| Method->"POST", "Body"->body, "ContentType"->"application/json", "Headers"->{"Authorization"-> authorizationHeader} |>];
+	azRef[ref:KeyValuePattern[{
+		"azType" -> "azure.applicationInsight.component"
+}]]] :=  Module[{req, res},
+	req = HTTPRequest[
+		StringTemplate["https://api.applicationinsights.io/v1/apps/`appId`/metadata"][ref],
+		<|"Headers"->{"X-Api-Key"-> authorizationHeader}|>
+	];
 	Sow[req];
 	res = URLRead@req;
-	Sow[res];
-	azParseRestResponde[res] 
+	azParseRestResponde@res
 ]
 
-logResourceFieldValue["long",v_] := v;
-logResourceFieldValue["string", v_String] := v;
-logResorceField[col_, valueStr_] := col["name"]->logResourceFieldValue[col["type"],valueStr];
-logResourceRow[columns_List,rows_List] := MapThread[logResorceField,{columns,rows}] // Association;
-logResourceTable[columns_List,rows_List] := logResourceRow[columns,#]& /@ rows;
-logResourceDS[ds_Dataset] := #name -> logResourceTable[#columns, #rows]& /@ Normal[ds["tables"]] // Association // Dataset;
 
-
-logAnalyticFieldValue[_,Null] := Null;
-logAnalyticFieldValue["SByte",False] := False;
-logAnalyticFieldValue["SByte",True] := True;
-logAnalyticFieldValue["Guid",v_] := v;
-logAnalyticFieldValue["Int64",v_] := v;
-logAnalyticFieldValue["Int32",v_] := v;
-logAnalyticFieldValue["Double",v_] := v;
-logAnalyticFieldValue["DateTime", v_String] := DateObject[v ,TimeZone->"Zulu"];
-logAnalyticFieldValue["String", v_String] := v 
-logAnalyticField[col_, valueStr_] := col["ColumnName"]->logAnalyticFieldValue[col["DataType"],valueStr];
-logAnalyticRow[columns_List,rows_List] := MapThread[logAnalyticField,{columns,rows}] // Association;
-logAnalyticTable[columns_List,rows_List] := logAnalyticRow[columns,#]& /@ rows;
-logAnalyticDS[ds_Dataset] := #TableName->logAnalyticTable[#Columns,#Rows]&/@ Normal[ds["Tables"]] // Association // Dataset;
 
 
 (* ::Subsection::Closed:: *)
@@ -1091,7 +1035,147 @@ azLogAnalyticsKubeSearchContainerLogs[auth_,ref_, str_String, dateRange_: Null] 
 
 
 (* ::Section::Closed:: *)
+(*Application Gateway*)
+
+
+cfg = <|
+	"azType"->"azure.appGateway",
+	"nameSingular"->"AppGateway",
+	"namePlural"->"AppGateways",
+	"panelIcon"-> icons["azure.applicaionGateway"],
+	"panelLabelFunc"-> Function[{refData}, refData["gatewayName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/application-gateway/applicationgateways",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/applicationGateways/scb-apim-prd-apim-agw/overview",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/applicationGateways/`gatewayName`?api-version=2020-05-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.Network/applicationGateways?api-version=2020-05-01",
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"gatewayName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"gatewayName"}
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Section::Closed:: *)
 (*Monitor*)
+
+
+(* ::Subsection::Closed:: *)
+(*Log Query*)
+
+
+azLogQueryInfo[auth_, ref_azRef] := 
+	azLogQuery[auth, ref, "union * | where TimeGenerated > ago(24h) | summarize count() by Type, TenantId"]
+
+
+azLogQuery[
+	authorizationHeader_String,
+	azRef[refData:KeyValuePattern[{
+		"azType" -> "azure.applicationInsight.component"
+	}]], 
+	query_String,
+	dateRange:{from_DateObject,to_DateObject}
+] := Module[ {url, req,res,body},
+	Sow[{query,dateRange}];
+	url = StringTemplate["https://api.applicationinsights.io/v1/apps/`appId`/query"][refData];
+	body = ExportString[<|"query"->query, "timespan" -> toIso8601[dateRange]|>,"RawJSON"];
+	req = HTTPRequest[url, <| 
+		Method->"POST", 
+		"Body"->body, 
+		"ContentType"->"application/json", 
+		"Headers"->{"X-Api-Key"-> authorizationHeader} 
+	|>];
+	Sow[req];
+	res = URLRead@req ;
+	Sow[res];
+	azParseRestResponde@res /. ds_Dataset :> logResourceDS@ds
+];	
+
+azLogQuery[
+	authorizationHeader_String,
+	azRef[refData:KeyValuePattern[{
+		"azType" -> "azure.logAnalytics.workspace"
+	}]], 
+	query_String,
+	dateRange:{from_DateObject,to_DateObject}
+] := azLogQuery[
+	authorizationHeader,
+	StringTemplate["https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`/api/query?api-version=2017-01-01-preview"]
+		[refData],
+	query,
+	dateRange
+] // logAnalyticDS;		
+
+azLogQuery[
+	auth_String,
+	ref_azRef, 
+	query_String,
+	dateRange:{from_DateObject,to_DateObject}
+] := functionCatch["azLogQuery", Module[{resourceId}, 
+	resourceId = refToAzureId[auth, ref] // assertPattern[_String];
+	azLogQuery[
+		auth,
+		"https://management.azure.com" <>
+			resourceId <> 
+			"/providers/microsoft.insights/logs?api-version=2018-03-01-preview",
+		query,
+		dateRange
+	] // logResourceDS
+]]
+ 
+azLogQuery[
+	authorizationHeader_String,
+	res_, 
+	query_String
+] := azLogQuery[authorizationHeader, res, query, {DateObject[{1800}],DateObject[{3000}]}];
+
+azLogQuery[
+	authorizationHeader_String,
+	url_String, 
+	query_String,
+	dateRange:{from_DateObject,to_DateObject}
+] := Module[ {req,res,body},
+	Sow[{query,dateRange}];
+	body = ExportString[<|"query"->query, "timespan" -> toIso8601[dateRange]|>,"RawJSON"];
+	req = HTTPRequest[url, <| Method->"POST", "Body"->body, "ContentType"->"application/json", "Headers"->{"Authorization"-> authorizationHeader} |>];
+	Sow[req];
+	res = URLRead@req;
+	Sow[res];
+	azParseRestResponde[res] 
+]
+
+logResourceFieldValue[_,Null] := Null;
+logResourceFieldValue["bool",False] := False;
+logResourceFieldValue["bool",True] := True;
+logResourceFieldValue["datetime", v_String] := DateObject[v ,TimeZone->"Zulu"];
+logResourceFieldValue["long",v_] := v;
+logResourceFieldValue["string", v_String] := v;
+logResorceField[col_, valueStr_] := col["name"]->logResourceFieldValue[col["type"],valueStr];
+logResourceRow[columns_List,rows_List] := MapThread[logResorceField,{columns,rows}] // Association;
+logResourceTable[columns_List,rows_List] := logResourceRow[columns,#]& /@ rows;
+logResourceDS[ds_Dataset] := #name -> logResourceTable[#columns, #rows]& /@ Normal[ds["tables"]] // Association // Dataset;
+logResourceDS[v_] := v;
+
+logAnalyticFieldValue[_,Null] := Null;
+logAnalyticFieldValue["SByte",False] := False;
+logAnalyticFieldValue["SByte",True] := True;
+logAnalyticFieldValue["Guid",v_] := v;
+logAnalyticFieldValue["Int64",v_] := v;
+logAnalyticFieldValue["Int32",v_] := v;
+logAnalyticFieldValue["Double",v_] := v;
+logAnalyticFieldValue["DateTime", v_String] := DateObject[v ,TimeZone->"Zulu"];
+logAnalyticFieldValue["String", v_String] := v 
+logAnalyticField[col_, valueStr_] := col["ColumnName"]->logAnalyticFieldValue[col["DataType"],valueStr];
+logAnalyticRow[columns_List,rows_List] := MapThread[logAnalyticField,{columns,rows}] // Association;
+logAnalyticTable[columns_List,rows_List] := logAnalyticRow[columns,#]& /@ rows;
+logAnalyticDS[ds_Dataset] := #TableName->logAnalyticTable[#Columns,#Rows]&/@ Normal[ds["Tables"]] // Association // Dataset;
+logAnalyticDS[v_] := v;
 
 
 (* ::Subsection::Closed:: *)
@@ -1128,7 +1212,50 @@ azActivityLog[
 ];
 
 
-(* ::Section::Closed:: *)
+(* ::Subsection::Closed:: *)
+(*Diagnostic settings*)
+
+
+azDiagnosticSettings[authorizationHeader_, ref_azRef] := Module[
+	{resourceId},
+	resourceId = refToAzureId[authorizationHeader, ref] // assertPattern[_String];
+	azHttpGet[
+		authorizationHeader,
+		StringTemplate["https://management.azure.com``/providers/microsoft.insights/diagnosticSettings?api-version=2017-05-01-preview"]
+			[resourceId]
+	]	
+]
+
+
+(* ::Subsection::Closed:: *)
+(*Log profiles*)
+
+
+azLogProfiles[authorizationHeader_, azRefAzurePattern["azure.subscription"]] := 
+	azHttpGet[
+		authorizationHeader,
+		{
+			"https://management.azure.com/subscriptions/`subscriptionId`/providers/microsoft.insights/logprofiles?api-version=2016-03-01",
+			ref
+		}
+	]	
+
+
+(* ::Subsection::Closed:: *)
+(*Data collection rules*)
+
+
+azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscription"]] := 
+	azHttpGet[
+		authorizationHeader,
+		{
+			"https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.Insights/dataCollectionRules?api-version=2019-11-01-preview",
+			ref
+		}
+	]	
+
+
+(* ::Section:: *)
 (*API manager*)
 
 
@@ -1185,8 +1312,6 @@ cfg = <|
 	"searchFields" -> {"name"},
 	"newRefKeys" -> {"loggerName"}
 |>;
-
-
 azureDefaultOperationsBuilder[cfg];
 
 
@@ -1311,6 +1436,74 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
+(* ::Subsection:: *)
+(*Gateways*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.gateway",
+	"nameSingular"-> "ApiManagementGateway",
+	"namePlural"-> "ApiManagementGateways",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData}, refData["gatewayName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/gateway",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-gateways",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/gateways/`gatewayName`?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/gateways?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.service"],
+	"parentAzType" -> "azure.apiManagement.service",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"gatewayName" -> res["name"]
+		
+	|>],
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"gatewayName"}
+|>;
+azureDefaultOperationsBuilder[cfg]
+
+
+azApiManagementApiList[auth_, azRefAzurePattern["azure.apiManagement.gateway"]] := 
+	azHttpGet[
+		auth, {
+			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/gateways/`gatewayName`/apis?api-version=2019-12-01",
+			ref
+		}
+	] /. ds_Dataset :> ds["value"];
+AppendTo[relations, {"azure.apiManagement.gateway"->"azure.apiManagement.api", {"azApiManagementApiList"}}];
+
+
+(* ::Subsection:: *)
+(*Gateway hosts*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.gatewayHostname",
+	"nameSingular"-> "ApiManagementGatewayHostname",
+	"namePlural"-> "ApiManagementGatewayHostnames",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData}, refData["hostName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/gatewayhostnameconfiguration",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-gateways",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/gateways/`gatewayName`/hostnameConfigurations/`hostName`?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/gateways/`gatewayName`/hostnameConfigurations?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.gateway"],
+	"parentAzType" -> "azure.apiManagement.gateway",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"gatewayName" -> getIdKeyValue[res["id"],"gateways/"],
+		"hostName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"hostName"}
+|>;
+azureDefaultOperationsBuilder[cfg]
+
+
 (* ::Section::Closed:: *)
 (*Event Hubs*)
 
@@ -1351,7 +1544,7 @@ azureDefaultOperationsBuilder[cfg];
 
 
 cfg = <|
-	"azType"->"azure.applicationInsight.component",
+	"azType"->"azure.appInsight.component",
 	"nameSingular"-> "AppInsightComponent",
 	"namePlural"-> "AppInsightComponents",
 	"panelIcon"-> icons["azure.applicationInsight"],
@@ -1365,7 +1558,8 @@ cfg = <|
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
-		"componentName" -> res["name"]
+		"componentName" -> res["name"],
+		"appId" -> Association[res["properties"]]["AppId"]
 	|>],
 	"searchFields" -> {"name"},
 	"newRefKeys" -> {"componentName"}
@@ -1374,7 +1568,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*DevOps*)
 
 
@@ -1600,7 +1794,7 @@ azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
 ];
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Folders*)
 
 

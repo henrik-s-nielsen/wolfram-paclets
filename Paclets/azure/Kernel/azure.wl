@@ -14,7 +14,7 @@
 (*- remove: newRefKeys just reload*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Header*)
 
 
@@ -297,12 +297,6 @@ azParent[auth_, base_azRef, parentType_String] := Module[{dirtyParent, cleanPare
 	cleanParent 
 ];
 
-(* azCreateParentAzRef[base_azRef, azType_String,keysToRemove_List] :=
-	azRef[<|
-		"azType"->azType,
-		KeySelect[Normal@base,!MemberQ[Append[keysToRemove,"azType"],#]& ]
-	|>];
-*)
 azCreateAzRef[base_azRef, azType_String,data_Association] := Module[
 	{d=Normal@base},
 	d["azType"] = azType;
@@ -501,7 +495,7 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Azure*)
 
 
@@ -628,15 +622,15 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 	If[KeyExistsQ[cfg, "parentAzType"],
 		azureRelationBuilder[cfg],
 		Null] // AppendTo[res,#] &;
-(*	If[KeyExistsQ[cfg, "newRefKeys"],
+	If[KeyExistsQ[cfg, "newRefKeys"],
 		devOpsParentBuilder[cfg],
-		Null] // AppendTo[res,#] &; *)
+		Null] // AppendTo[res,#] &; 
 	res
 ];
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*DevOps*)
 
 
@@ -814,9 +808,9 @@ devOpsDefaultOperationsBuilder[cfg_Association] := Module[
 	If[KeyExistsQ[cfg, "parentAzType"],
 		devOpsRelationBuilder[cfg],
 		Null] // AppendTo[res,#] &;
-(*	If[KeyExistsQ[cfg, "newRefKeys"],
+	If[KeyExistsQ[cfg, "newRefKeys"],
 		devOpsParentBuilder[cfg],
-		Null] // AppendTo[res,#] &; *)
+		Null] // AppendTo[res,#] &; 
 	res
 ];
 
@@ -868,7 +862,7 @@ Block[{type, bg, display, panelInf},
 
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Subscriptions*)
 
 

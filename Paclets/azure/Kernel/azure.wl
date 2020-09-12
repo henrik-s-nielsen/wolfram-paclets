@@ -22,6 +22,7 @@ BeginPackage["azure`"];
 
 
 (* Base *)
+azRefresh;
 azHttpGet;
 azHttpGetPaged;
 azHttpPost;
@@ -103,6 +104,8 @@ azApiManagementProductSearch;
 azApiManagementApis;
 azApiManagementApiList;
 azApiManagementApiSearch;
+azApiManagementApiRevisions;
+azApiManagementApiRevisionList;
 azApiManagementApiSchemas;
 azApiManagementApiSchemaList;
 azApiManagementApiSchemaSearch;
@@ -112,6 +115,15 @@ azApiManagementGatewaySearch;
 azApiManagementGatewayHostnames;
 azApiManagementGatewayHostnameList;
 azApiManagementGatewayHostnameSearch;
+azApiManagementDiagnostics;
+azApiManagementDiagnosticList;
+azApiManagementDiagnosticSearch;
+azApiManagementApiOperations;
+azApiManagementApiOperationList;
+azApiManagementApiOperationSearch;
+azApiManagementApiReleases;
+azApiManagementApiReleaseList;
+azApiManagementApiReleaseSearch;
 
 (* Event Hubs *)
 azEventHubs;
@@ -128,6 +140,10 @@ azAppInsightComponentSearch;
 azAppGateways;
 azAppGatewayList;
 azAppGatewaySearch;
+
+(* VirtualNetwork *)
+azVirtualNetworks;
+azVirtualNetworkList;
 
 (* Azure DevOps - project *)
 azDevOpsProjects;
@@ -177,6 +193,8 @@ azDevOpsReleaseRunStages;
 azDevOpsReleaseRunStageDeploy;
 
 (* Azure DevOps - User and groups *)
+azEntitlements;
+azDevOpvStorageKey;
 azDevOpsUsers;
 azDevOpsUserList;
 azDevOpsUserSearch;
@@ -203,7 +221,7 @@ refToAzureId;
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
@@ -240,6 +258,30 @@ yaml.load(\"\"\"``\"\"\")
 ];
 
 
+azRefresh[auth_, ref_azRef] := azInfo[auth, ref] /. ds_Dataset :> ds["azRef"] ;
+
+
+(* parseUrl[someUrl, "/resource/`resourceId`/group/`groupName`"]  *)
+
+parseUrl[txt_String, strPattern_String] := parseUrl[
+	txt,
+	StringSplit[strPattern, "`" ~~ key : (Except["`"] ..) ~~ "`" :> Key@key],
+	<||>
+];
+parseUrl[txt_String, {first_String, rest___}, result_Association] := If[
+	StringMatchQ[txt, StartOfString ~~ first ~~ ___, IgnoreCase -> True],
+	parseUrl[StringReplace[txt, StartOfString ~~ first :> "" ], {rest}, result],
+	$Failed
+];
+parseUrl[txt_String, {Key[key_String], rest___}, result_Association] :=
+	parseUrl[
+		StringReplace[txt, (StartOfString ~~ Except["/"] ..) -> ""],
+		{rest},
+		Append[result, key -> StringCases[txt, (StartOfString ~~ Except["/"] ..)] /. {v_} :> v]
+	];
+parseUrl[_, {}, result_Association] := result;
+
+
 relations={};
 azRelations[]:=relations;
 
@@ -247,12 +289,20 @@ azRelations[]:=relations;
 azRef/:Normal[azRef[a_Association]] := a;
 azRef[a_Association][property_String] := a[property];
 
-azCreateParentAzRef[base_azRef, azType_String,keysToRemove_List] :=
+azParent[auth_, base_azRef, parentType_String] := Module[{dirtyParent, cleanParent},
+	dirtyParent = Normal@base;
+	dirtyParent["azType"] = parentType;
+	dirtyParent = azRef[dirtyParent];
+	cleanParent = azRefresh[auth, dirtyParent];
+	cleanParent 
+];
+
+(* azCreateParentAzRef[base_azRef, azType_String,keysToRemove_List] :=
 	azRef[<|
 		"azType"->azType,
 		KeySelect[Normal@base,!MemberQ[Append[keysToRemove,"azType"],#]& ]
 	|>];
-
+*)
 azCreateAzRef[base_azRef, azType_String,data_Association] := Module[
 	{d=Normal@base},
 	d["azType"] = azType;
@@ -442,10 +492,12 @@ azOpenUi[KeyValuePattern["azRef" -> ref_]] := azOpenUi@ref;
 azOpenUi[ds_Dataset] := azOpenUi@Normal@ds;
 
 
-azRelationPlot[]:=Module[{rel=azRelations[],edges,vertices},
+azRelationPlot[] := azRelationPlot[azRelations[]];
+azRelationPlot[rel_List] := Module[{edges,vertices},
 edges=(#/.{t1_->t2_,l_}:>Tooltip[(t1->t2),TableForm@l])&/@rel;
 vertices=(#/.{t1_->t2_,_}:>Splice[{t1->Tooltip[azIcon[t1],t1],t2->Tooltip[azIcon[t2],t2]}])&/@rel;
-GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphLayout->"RadialEmbedding"]
+GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphLayout->"RadialEmbedding"] /. 
+	Arrowheads[_]-> Arrowheads[0.01]
 ]
 
 
@@ -555,9 +607,9 @@ azureParentBuilder[cfg:KeyValuePattern[{
 	"parentAzType"->_String,
 	"newRefKeys" -> _List
 }]] := TemplateObject[Hold[
-azParent[azRefDevOpsPattern[TemplateSlot["azType"]]] :=
-	azCreateParentAzRef[ref, TemplateSlot["parentAzType"],TemplateSlot["newRefKeys"]];
-	AppendTo[relations, {TemplateSlot["azType"]->TemplateSlot["parentAzType"], {"azParent"}}];
+azParent[auth_, azRefDevOpsPattern[TemplateSlot["azType"]]] :=
+	azParent[auth, ref, TemplateSlot["parentAzType"]];
+AppendTo[relations, {TemplateSlot["azType"]->TemplateSlot["parentAzType"], {"azParent"}}];
 ]][cfg] // ReleaseHold
 
 
@@ -576,9 +628,9 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 	If[KeyExistsQ[cfg, "parentAzType"],
 		azureRelationBuilder[cfg],
 		Null] // AppendTo[res,#] &;
-	If[KeyExistsQ[cfg, "newRefKeys"],
+(*	If[KeyExistsQ[cfg, "newRefKeys"],
 		devOpsParentBuilder[cfg],
-		Null] // AppendTo[res,#] &;
+		Null] // AppendTo[res,#] &; *)
 	res
 ];
 
@@ -732,8 +784,8 @@ devOpsParentBuilder[cfg:KeyValuePattern[{
 	"newRefKeys" -> _List
 }]] := TemplateObject[Hold[
 azParent[azRefDevOpsPattern[TemplateSlot["azType"]]] :=
-	azCreateParentAzRef[ref, TemplateSlot["parentAzType"],TemplateSlot["newRefKeys"]];
-	AppendTo[relations, {TemplateSlot["azType"]->TemplateSlot["parentAzType"], {"azParent"}}];
+	azParent[auth, ref, TemplateSlot["parentAzType"]];
+AppendTo[relations, {TemplateSlot["azType"]->TemplateSlot["parentAzType"], {"azParent"}}];
 ]][cfg] // ReleaseHold
 
 
@@ -762,9 +814,9 @@ devOpsDefaultOperationsBuilder[cfg_Association] := Module[
 	If[KeyExistsQ[cfg, "parentAzType"],
 		devOpsRelationBuilder[cfg],
 		Null] // AppendTo[res,#] &;
-	If[KeyExistsQ[cfg, "newRefKeys"],
+(*	If[KeyExistsQ[cfg, "newRefKeys"],
 		devOpsParentBuilder[cfg],
-		Null] // AppendTo[res,#] &;
+		Null] // AppendTo[res,#] &; *)
 	res
 ];
 
@@ -816,7 +868,7 @@ Block[{type, bg, display, panelInf},
 
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Subscriptions*)
 
 
@@ -825,32 +877,17 @@ cfg = <|
 	"nameSingular"->"Subscription",
 	"namePlural"->"Subscriptions",
 	"panelIcon"-> icons["azure.subscription"],
-	"panelLabelFunc"-> Function[{refData}, refData["subscriptionName"]],
+	"panelLabelFunc"-> Function[{refData}, If[
+							KeyExistsQ[refData,"subscriptionName"], 
+							refData["subscriptionName"],
+							refData["subscriptionId"]	
+						]],
 	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/overview"
 |>;
 azurePanelInfoBuilder[cfg];
 
-azShellGetSubscriptions[args___] := azShellGetSubscriptionList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
-azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
-	KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_}] :> 
-		Dataset[ImportByteArray[StringToByteArray@std,"RawJSON"]][
-			All, <| "azRef" -> azRef[<|
-				"azType" -> "azure.subscription",
-				"subscriptionName" -> #["name"],
-				"subscriptionId" -> #["id"]
-			|>], # |> &]
-
-
-
-(*
-refLabel[ref:KeyValuePattern["azType" -> "azure.subscription"]] := ref["subscriptionName"];
-refIcon[KeyValuePattern["azType" -> "azure.subscription"]] := icons["azure.subscription"];
-
-azOpenUi[azRefAzurePattern["azure.subscription"]] := Module[{url},
-	url = StringTemplate["https://portal.azure.com/#@santander.onmicrosoft.com/resource/subscriptions/`subscriptionId`/overview"]
-		[URLEncode /@ refData];
-	azOpenUi[url];
-];
+azRefresh[auth_, azRef[refData:KeyValuePattern["azType" -> "azure.subscription"]]] :=
+	KeySelect[refData,  MemberQ[{"azType","subscriptionName","subscriptionId"},# ]&] // azRef
 
 azShellGetSubscriptions[args___] := azShellGetSubscriptionList[args] /. ds_Dataset :> Normal@ds[All,"azRef"];
 azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
@@ -861,7 +898,7 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 				"subscriptionName" -> #["name"],
 				"subscriptionId" -> #["id"]
 			|>], # |> &]
-*)
+
 
 
 (* ::Section::Closed:: *)
@@ -1255,7 +1292,7 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*API manager*)
 
 
@@ -1386,7 +1423,7 @@ cfg = <|
 	"nameSingular"-> "ApiManagementApi",
 	"namePlural"-> "ApiManagementApis",
 	"panelIcon"-> icons["azure.apiManagement"],
-	"panelLabelFunc"-> Function[{refData}, refData["apiName"]],
+	"panelLabelFunc"-> Function[{refData}, refData["apiDisplayName"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apis",
 	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
 	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`?api-version=2019-12-01",
@@ -1397,13 +1434,45 @@ cfg = <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
-		"apiName" -> res["name"]
+		"apiName" -> res["name"],
+		"apiDisplayName" -> res["properties","displayName"]
 		
 	|>],
 	"searchFields" -> {"name"},
 	"newRefKeys" -> {"apiName"}
 |>;
 azureDefaultOperationsBuilder[cfg];
+
+
+(* ::Subsection::Closed:: *)
+(*API revision*)
+
+
+panelInfo["azure.apiManagement.api.revision"] := <|
+	"icon" -> icons["azure.apiManagement"],
+	"labelFunc" -> (#["apiId"] &)
+|>;
+azIcon[azRefAzurePattern["azure.apiManagement.api.revision"]] := azIcon[refData["azType"]];
+azIcon["azure.apiManagement.api.revision"] := icons["azure.apiManagement"];
+
+azApiManagementApiRevisions[auth_, ref_] :=
+	azApiManagementApiRevisionList[auth, ref] /. ds_Dataset :> Normal@ds[All,"azRef"];
+
+azApiManagementApiRevisionList[auth_, azRefAzurePattern["azure.apiManagement.api"]] :=
+	azHttpGet[
+		auth, {
+			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/revisions?api-version=2019-12-01",
+			ref
+		}
+	] /. ds_Dataset :> ds["value",All,<|
+		"azRef"-> azRef[<|
+			"azType" -> "azure.apiManagement.api.revision",
+			"apiId" -> StringReplace[#["apiId"], "/apis/" -> ""]
+		|>],
+		#
+	|>&];
+	
+AppendTo[relations, {"azure.apiManagement.api"->"azure.apiManagement.api.revision", {"azApiManagementApiRevisions","azApiManagementApiRevisionList"}}];
 
 
 (* ::Subsection::Closed:: *)
@@ -1436,7 +1505,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Gateways*)
 
 
@@ -1475,7 +1544,7 @@ azApiManagementApiList[auth_, azRefAzurePattern["azure.apiManagement.gateway"]] 
 AppendTo[relations, {"azure.apiManagement.gateway"->"azure.apiManagement.api", {"azApiManagementApiList"}}];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Gateway hosts*)
 
 
@@ -1500,6 +1569,93 @@ cfg = <|
 	|>],
 	"searchFields" -> {"name"},
 	"newRefKeys" -> {"hostName"}
+|>;
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection::Closed:: *)
+(*Diagnostics*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.diagnostic",
+	"nameSingular"-> "ApiManagementDiagnostic",
+	"namePlural"-> "ApiManagementDiagnostics",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData}, refData["diagnosticName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/diagnostic",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/diagnostics",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/diagnostics/`diagnosticName`?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/diagnostics?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.service"],
+	"parentAzType" -> "azure.apiManagement.service",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"diagnosticName" -> res["name"]
+		
+	|>],
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"diagnosticName"}
+|>;
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection::Closed:: *)
+(*API Operation*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.api.operation",
+	"nameSingular"-> "ApiManagementApiOperation",
+	"namePlural"-> "ApiManagementApiOperations",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData},  refData["operationName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apioperation",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/operations/`operationId`?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/operations?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.api"],
+	"parentAzType" -> "azure.apiManagement.api",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"apiName" -> getIdKeyValue[res["id"],"apis/"],
+		"operationName" -> res["properties","displayName"],
+		"operationId" -> res["name"]
+	|>],
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"operationName","operatonId"}
+|>;
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection::Closed:: *)
+(*API Release*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.api.release",
+	"nameSingular"-> "ApiManagementApiRelease",
+	"namePlural"-> "ApiManagementApiReleases",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData},  refData["releaseId"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apirelease",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/releases/`releaseId`?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/releases?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.api"],
+	"parentAzType" -> "azure.apiManagement.api",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"releaseId" -> res["name"]
+	|>],
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"releaseName"}
 |>;
 azureDefaultOperationsBuilder[cfg]
 
@@ -1568,7 +1724,39 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
+(*Virtual Networks*)
+
+
+(* ::Subsection::Closed:: *)
+(*Virtual Networks*)
+
+
+cfg = <|
+	"azType"->"azure.virtualNetwork",
+	"nameSingular"-> "VirtualNetwork",
+	"namePlural"-> "VirtualNetworks",
+	"panelIcon"-> icons["azure.virtualNetwork"],
+	"panelLabelFunc"-> Function[{refData}, refData["networkName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/virtualnetwork/virtualnetworks",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/reourceGroupName/providers/Microsoft.Network/virtualNetworks/`networkName`/overview",
+	"getUrl"-> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/virtualNetworks/`networkName`?api-version=2020-05-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.Network/virtualNetworks?api-version=2020-05-01",
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"networkName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"},
+	"newRefKeys" -> {"networkName"}
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Section::Closed:: *)
 (*DevOps*)
 
 
@@ -1794,7 +1982,7 @@ azDevOpsGitCommitPlot[g_Graph]:=GraphPlot[
 ];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Folders*)
 
 
@@ -1988,7 +2176,7 @@ azDevOpsBuildDefinitionProcess[auth_, azRefDevOpsPattern["devOps.build.definitio
 
 
 azDevOpsBuildRunList[auth_, azRefDevOpsPattern["devOps.build.definition"]] :=
-	azDevOpsBuildRunList[auth, azParent@ref][Select[#definition["id"] == ref["definitionId"] &] ];
+	azDevOpsBuildRunList[auth, azParent[auth,ref]][Select[#definition["id"] == ref["definitionId"] &] ];
 	
 AppendTo[relations, {"devOps.build.definition"->"devOps.build.run", {"azDevOpsBuildRuns","azDevOpsBuildRunList"}}];
 
@@ -2061,7 +2249,7 @@ azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Release*)
 
 
@@ -2107,7 +2295,28 @@ azDevOpsReleaseRunStageDeploy[auth_String, azRefDevOpsPattern["devOps.release"],
 
 
 (* ::Subsection::Closed:: *)
+(*Entitlements*)
+
+
+azEntitlements[auth_,azRefDevOpsPattern["devOps.user"]] :=
+	azHttpGet[
+		auth,
+		StringTemplate["https://vsaex.dev.azure.com/`organizationName`/_apis/userentitlements/`storageKey`?api-version=6.1-preview.3"]
+			[<|refData, "storageKey" -> azDevOpvStorageKey[auth, ref]|>]
+	]
+
+
+(* ::Subsection::Closed:: *)
 (*Graph*)
+
+
+(* ::Subsubsection::Closed:: *)
+(*Storage key*)
+
+
+azDevOpvStorageKey[auth_, azRefDevOpsPattern["devOps.user"]] :=Module[{res},
+	azInfo[auth, ref] /. ds_Dataset :> azHttpGet[auth, ds["_links","storageKey","href"]]["value"]
+] 
 
 
 (* ::Subsubsection::Closed:: *)

@@ -1750,7 +1750,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*DevOps*)
 
 
@@ -1825,7 +1825,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Git*)
 
 
@@ -1864,7 +1864,7 @@ azDevOpsGitClone[auth_, azRefDevOpsPattern["devOps.git.repository"], folder_Stri
 ];
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Refs*)
 
 
@@ -1884,7 +1884,7 @@ azDevOpsGitClone[auth_, azRefDevOpsPattern["devOps.git.repository"], folder_Stri
 		"organizationName" -> devOpsOrgFromUrl[res["url"]], 
 		"projectId" -> devOpsProjectIdFromUrl[res["url"]],
 		"repositoryId" -> getIdKeyValue[res["url"],"repositories/"],
-		"refName" -> StringReplace[res["name"],"refs/"->""],
+		"refName" -> StringReplace[ToString@res["name"],"refs/"->""],
 		"commit" -> azRef[<|
 			"azType" -> "devOps.git.commit",
 			"organizationName" -> devOpsOrgFromUrl[res["url"]], 
@@ -1909,7 +1909,7 @@ azDevOpsGitRefList[authorizationHeader_String, azRefDevOpsPattern["devOps.git.co
 AppendTo[relations, {"devOps.git.ref"->"devOps.git.commit", {"azDevOpsGitRefs","azDevOpsGitRefList"}}];
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Commits*)
 
 
@@ -1918,7 +1918,7 @@ AppendTo[relations, {"devOps.git.ref"->"devOps.git.commit", {"azDevOpsGitRefs","
 	"nameSingular"->"GitCommit",
 	"namePlural"->"GitCommits",
 	"panelIcon"-> icons["devOps.repository"],
-	"panelLabelFunc"-> Function[{refData},StringTake[refData["commitId"],6]],
+	"panelLabelFunc"-> Function[{refData},StringTake[ToString@refData["commitId"],6]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/git/commits?view=azure-devops-rest-6.0",
 	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_git/APIs/commit/`commitId`",
 	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/git/repositories/`repositoryId`/commits/`commitId`?api-version=6.0-preview.1",
@@ -2054,11 +2054,11 @@ azDownloadByteArray[auth_, azRefDevOpsPattern["devOps.git.file"]] :=
 	];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Build*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Definition*)
 
 
@@ -2141,7 +2141,7 @@ azDevOpsBuildDefinitionProcess[auth_, azRefDevOpsPattern["devOps.build.definitio
 		a_Association :> Dataset@a;
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Run*)
 
 
@@ -2150,7 +2150,7 @@ azDevOpsBuildDefinitionProcess[auth_, azRefDevOpsPattern["devOps.build.definitio
 	"nameSingular"->"BuildRun",
 	"namePlural"->"BuildRuns",
 	"panelIcon"-> icons["devOps.pipeline"],
-	"panelLabelFunc"-> Function[{refData}, (refData["repositoryName"] /. _Missing ->"" ) <> "  :  " <> refData["buildNumber"]],
+	"panelLabelFunc"-> Function[{refData}, (ToString@refData["repositoryName"] /. _Missing ->"" ) <> "  :  " <> ToString@refData["buildNumber"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/build/builds?view=azure-devops-rest-6.1",
 	"uiUrl" -> "https://dev.azure.com/`organizationName`/APIs/_build/results?buildId=`buildId`&view=results",
 	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/build/builds/`buildId`?api-version=6.1-preview.6",
@@ -2212,11 +2212,11 @@ azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
 	azFileNames[auth, ref["downloadUrl"]];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Release*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Release definition*)
 
 
@@ -2266,7 +2266,7 @@ azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
 	"listResultKeysFunc" -> Function[{res}, <|
 		"organizationName" -> devOpsOrgFromUrl[res["url"]], 
 		"projectId" -> devOpsProjectIdFromUrl[res["url"]],
-		"releaseDefinition" -> res["releaseDefinition","name"],
+		"releaseDefinition" -> ToString@res["releaseDefinition","name"],
 		"releaseId" -> res["id"],
 		"releaseName" -> res["name"]
 	|>],
@@ -2373,7 +2373,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Artifacts*)
 
 
@@ -2404,7 +2404,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Packages*)
 
 
@@ -2413,7 +2413,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 	"nameSingular"->"ArtifactPackage",
 	"namePlural"->"ArtifactPackages",
 	"panelIcon"-> icons["devOps.artifact"],
-	"panelLabelFunc"-> Function[{refData}, "(" <> refData["packageType"] <> ") " <> refData["packageName"] ],
+	"panelLabelFunc"-> Function[{refData}, "(" <> ToString@refData["packageType"] <> ") " <> ToString@refData["packageName"] ],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/artifacts/feed%20%20management?view=azure-devops-rest-6.2",
 	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectName`/_packaging?_a=feed",
 	"getUrl"->"https://feeds.dev.azure.com/`organizationName`/_apis/packaging/Feeds/`feedId`/packages/`packageId`?api-version=6.0-preview.1",
@@ -2444,7 +2444,7 @@ azDownloadByteArray[authorizationHeader_String, azRefDevOpsPattern["devOps.artif
 ]	
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Package versions*)
 
 
@@ -2453,7 +2453,7 @@ azDownloadByteArray[authorizationHeader_String, azRefDevOpsPattern["devOps.artif
 	"nameSingular"->"ArtifactPackageVersion",
 	"namePlural"->"ArtifactPackageVersionss",
 	"panelIcon"-> icons["devOps.artifact"],
-	"panelLabelFunc"-> Function[{refData}, refData["packageName"]<>" : "<> refData["packageVersion"]],
+	"panelLabelFunc"-> Function[{refData}, ToString@refData["packageName"]<>" : "<> ToString@refData["packageVersion"]],
 	"restDocumentation"-> "https://docs.microsoft.com/en-us/rest/api/azure/devops/artifacts/artifact%20%20details?view=azure-devops-rest-6.1",
 	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectName`/_packaging?_a=feed",
 	"getUrl"->"https://feeds.dev.azure.com/`organizationName`/`projectName`/_apis/packaging/Feeds/`feedId`/Packages/`packageId`/versions/`packageVersion`?api-version=6.1-preview.1",

@@ -11,7 +11,6 @@
 (* ::Text:: *)
 (*To do:*)
 (*- rename 	list to resource*)
-(*- remove: newRefKeys just reload*)
 
 
 (* ::Section::Closed:: *)
@@ -598,8 +597,7 @@ Symbol["az"<>TemplateSlot["nameSingular"]<>"Search"][auth_String, TemplateSlot["
 
 azureParentBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
-	"parentAzType"->_String,
-	"newRefKeys" -> _List
+	"parentAzType"->_String
 }]] := TemplateObject[Hold[
 azParent[auth_, azRefDevOpsPattern[TemplateSlot["azType"]]] :=
 	azParent[auth, ref, TemplateSlot["parentAzType"]];
@@ -620,11 +618,8 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 		azureSearchBuilder[cfg],
 		Null] // AppendTo[res,#] &;
 	If[KeyExistsQ[cfg, "parentAzType"],
-		azureRelationBuilder[cfg],
+		azureRelationBuilder[cfg]; devOpsParentBuilder[cfg],
 		Null] // AppendTo[res,#] &;
-	If[KeyExistsQ[cfg, "newRefKeys"],
-		devOpsParentBuilder[cfg],
-		Null] // AppendTo[res,#] &; 
 	res
 ];
 
@@ -774,8 +769,7 @@ azDelete[authorizationHeader_String, azRefDevOpsPattern[TemplateSlot["azType"]]]
 
 devOpsParentBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
-	"parentAzType"->_String,
-	"newRefKeys" -> _List
+	"parentAzType"->_String
 }]] := TemplateObject[Hold[
 azParent[azRefDevOpsPattern[TemplateSlot["azType"]]] :=
 	azParent[auth, ref, TemplateSlot["parentAzType"]];
@@ -806,11 +800,8 @@ devOpsDefaultOperationsBuilder[cfg_Association] := Module[
 		devOpsDeleteBuilder[cfg],
 		Null] // AppendTo[res,#] &;
 	If[KeyExistsQ[cfg, "parentAzType"],
-		devOpsRelationBuilder[cfg],
+		devOpsRelationBuilder[cfg]; devOpsParentBuilder[cfg],
 		Null] // AppendTo[res,#] &;
-	If[KeyExistsQ[cfg, "newRefKeys"],
-		devOpsParentBuilder[cfg],
-		Null] // AppendTo[res,#] &; 
 	res
 ];
 
@@ -895,7 +886,7 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Azure kubernetes service*)
 
 
@@ -916,14 +907,13 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"clusterName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"clusterName"}
+	"searchFields" -> {"name"}
 |>;
 
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Log analytics*)
 
 
@@ -951,7 +941,7 @@ azLogAnalyticsTableStatistics[authorizationHeader_String,ref_, dateRange:{_DateO
 	", dateRange] /. ds_Dataset :> ds["Table_0",GroupBy["DataType"],Total /* (UnitConvert[#,Quantity[1,"Gigabytes"]]&),Quantity[#Quantity,#QuantityUnit]&][ReverseSort]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Workspaces*)
 
 
@@ -972,8 +962,7 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"workspaceName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"workspaceName"}
+	"searchFields" -> {"name"}
 |>;
 
 azureDefaultOperationsBuilder[cfg]
@@ -1065,7 +1054,7 @@ azLogAnalyticsKubeSearchContainerLogs[auth_,ref_, str_String, dateRange_: Null] 
 		ds_Dataset:>ds["Table_0"]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Application Gateway*)
 
 
@@ -1086,8 +1075,7 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"gatewayName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"gatewayName"}
+	"searchFields" -> {"name"}
 |>;
 
 azureDefaultOperationsBuilder[cfg]
@@ -1286,11 +1274,11 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*API manager*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Services*)
 
 
@@ -1311,14 +1299,13 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"serviceName"}
+	"searchFields" -> {"name"}
 |>;
 
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Loggers*)
 
 
@@ -1340,13 +1327,12 @@ cfg = <|
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"loggerName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"loggerName"}
+	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Subscriptions*)
 
 
@@ -1369,15 +1355,14 @@ cfg = <|
 		"subscriptionName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"subscriptionName"}
+	"searchFields" -> {"name"}
 |>;
 
 
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Products*)
 
 
@@ -1400,15 +1385,14 @@ cfg = <|
 		"productName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"productName"}
+	"searchFields" -> {"name"}
 |>;
 
 
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*API's*)
 
 
@@ -1432,8 +1416,7 @@ cfg = <|
 		"apiDisplayName" -> res["properties","displayName"]
 		
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"apiName"}
+	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg];
 
@@ -1469,7 +1452,7 @@ azApiManagementApiRevisionList[auth_, azRefAzurePattern["azure.apiManagement.api
 AppendTo[relations, {"azure.apiManagement.api"->"azure.apiManagement.api.revision", {"azApiManagementApiRevisions","azApiManagementApiRevisionList"}}];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*API Schema's*)
 
 
@@ -1493,13 +1476,12 @@ cfg = <|
 		"schemaName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"schemaName"}
+	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Gateways*)
 
 
@@ -1522,8 +1504,7 @@ cfg = <|
 		"gatewayName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"gatewayName"}
+	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg]
 
@@ -1538,7 +1519,7 @@ azApiManagementApiList[auth_, azRefAzurePattern["azure.apiManagement.gateway"]] 
 AppendTo[relations, {"azure.apiManagement.gateway"->"azure.apiManagement.api", {"azApiManagementApiList"}}];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Gateway hosts*)
 
 
@@ -1561,13 +1542,12 @@ cfg = <|
 		"gatewayName" -> getIdKeyValue[res["id"],"gateways/"],
 		"hostName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"hostName"}
+	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Diagnostics*)
 
 
@@ -1590,13 +1570,12 @@ cfg = <|
 		"diagnosticName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"diagnosticName"}
+	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*API Operation*)
 
 
@@ -1620,13 +1599,12 @@ cfg = <|
 		"operationName" -> res["properties","displayName"],
 		"operationId" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"operationName","operatonId"}
+	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*API Release*)
 
 
@@ -1648,17 +1626,16 @@ cfg = <|
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"releaseId" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"releaseName"}
+	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Event Hubs*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Namespaces*)
 
 
@@ -1679,17 +1656,16 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"namespace" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"namespace"}
+	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Application Insights*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Components*)
 
 
@@ -1711,18 +1687,17 @@ cfg = <|
 		"componentName" -> res["name"],
 		"appId" -> Association[res["properties"]]["AppId"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"componentName"}
+	"searchFields" -> {"name"}
 |>;
 
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Virtual Networks*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Virtual Networks*)
 
 
@@ -1743,8 +1718,7 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"networkName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"networkName"}
+	"searchFields" -> {"name"}
 |>;
 
 azureDefaultOperationsBuilder[cfg]
@@ -1797,7 +1771,7 @@ azIcon[azRefAzurePattern["devOps.organization"]] := azIcon[refData["azType"]];
 azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Projects*)
 
 
@@ -1818,8 +1792,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 		"projectId" -> res["id"],
 		"projectName" -> res["name"] 
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"projectName"}
+	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
 
 
@@ -1829,7 +1802,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 (*Git*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Repositories*)
 
 
@@ -1851,8 +1824,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 		"repositoryName" -> res["name"],
 		"repositoryId" -> res["id"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"repositoryName","repositoryId"}
+	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder;
 
 
@@ -1893,8 +1865,7 @@ azDevOpsGitClone[auth_, azRefDevOpsPattern["devOps.git.repository"], folder_Stri
 			"commitId" -> res["objectId"]
 		|>]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"commmit","refName"}
+	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder 
 
 azDevOpsGitRefList[authorizationHeader_String, azRefDevOpsPattern["devOps.git.commit"]] := functionCatch["azDevOpsGitRefList", Module[
@@ -1931,8 +1902,7 @@ AppendTo[relations, {"devOps.git.ref"->"devOps.git.commit", {"azDevOpsGitRefs","
 		"repositoryId" -> getIdKeyValue[res["url"],"repositories/"],
 		"commitId" -> res["commitId"]
 	|>],
-	"searchFields" -> {"commitId"},
-	"newRefKeys" -> {"commitId"}
+	"searchFields" -> {"commitId"}
 |>) // devOpsDefaultOperationsBuilder
 
 azDevOpsGitCommitList[authorizationHeader_String, azRefDevOpsPattern["devOps.git.ref"]] := 
@@ -2080,8 +2050,7 @@ azDownloadByteArray[auth_, azRefDevOpsPattern["devOps.git.file"]] :=
 		"definitionId" -> res["id"],
 		"definitionName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"definitionName","definitionId"}
+	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder;
 
 
@@ -2164,8 +2133,7 @@ azDevOpsBuildDefinitionProcess[auth_, azRefDevOpsPattern["devOps.build.definitio
 		"repositoryName" -> res["repository","name"],
 		"buildNumber" -> res["buildNumber"]
 	|>],
-	"searchFields" -> {"buildNumber","id","repositoryName"},
-	"newRefKeys" -> {"buildNumber","repositoryName","buildId"}
+	"searchFields" -> {"buildNumber","id","repositoryName"}
 |> // devOpsDefaultOperationsBuilder;
 
 
@@ -2175,7 +2143,7 @@ azDevOpsBuildRunList[auth_, azRefDevOpsPattern["devOps.build.definition"]] :=
 AppendTo[relations, {"devOps.build.definition"->"devOps.build.run", {"azDevOpsBuildRuns","azDevOpsBuildRunList"}}];
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Artifacts*)
 
 
@@ -2198,8 +2166,7 @@ AppendTo[relations, {"devOps.build.definition"->"devOps.build.run", {"azDevOpsBu
 		"artifactTyoe" -> res["resource","type"],
 		"downloadUrl" ->res["resource","downloadUrl"]
 	|>],
-	"searchFields" -> {"buildNumber","id","repositoryName"},
-	"newRefKeys" -> {"artifactId","artifactName","aritfactType","downloadUrl"}
+	"searchFields" -> {"buildNumber","id","repositoryName"}
 |> // devOpsDefaultOperationsBuilder
 
 azDownloadFile[auth_, azRefDevOpsPattern["devOps.build.artifact"]] := 
@@ -2238,8 +2205,7 @@ azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
 		"definitionName" -> res["name"],
 		"definitionId" -> res["id"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"definitionName","definitionId"}
+	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
 
 
@@ -2270,8 +2236,7 @@ azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
 		"releaseId" -> res["id"],
 		"releaseName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"releaseName","releaseId","releaseDefinition"}
+	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
 
 azDevOpsReleaseRunCreate[authorizationHeader_String, azRefDevOpsPattern["devOps.releaseDefinition"]] :=
@@ -2300,7 +2265,7 @@ azEntitlements[auth_,azRefDevOpsPattern["devOps.user"]] :=
 	]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Graph*)
 
 
@@ -2313,7 +2278,7 @@ azDevOpvStorageKey[auth_, azRefDevOpsPattern["devOps.user"]] :=Module[{res},
 ] 
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Users*)
 
 
@@ -2334,12 +2299,11 @@ azDevOpvStorageKey[auth_, azRefDevOpsPattern["devOps.user"]] :=Module[{res},
 		"userDescriptor" -> res["descriptor"],
 		"displayName" -> res["displayName"]
 	|>],
-	"searchFields" -> {"displayName","mailAddress","directoryAlias"},
-	"newRefKeys" -> {"displayName","userDescriptor"}
+	"searchFields" -> {"displayName","mailAddress","directoryAlias"}
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Users groups*)
 
 
@@ -2359,8 +2323,7 @@ azDevOpvStorageKey[auth_, azRefDevOpsPattern["devOps.user"]] :=Module[{res},
 		"groupDescriptor" -> res["descriptor"],
 		"displayName" -> res["displayName"]
 	|>],
-	"searchFields" -> {"displayName"},
-	"newRefKeys" -> {"displayName","groupDescriptor"}
+	"searchFields" -> {"displayName"}
 |> // devOpsDefaultOperationsBuilder
 
 azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]] := Module[
@@ -2377,7 +2340,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 (*Artifacts*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Feed*)
 
 
@@ -2398,8 +2361,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 		"feedId" -> res["id"],
 		"feedName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"feedId","feedName"}
+	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
 
 
@@ -2427,8 +2389,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 		"packageId" -> res["id"],
 		"packageType" -> res["protocolType"]
 	|>],
-	"searchFields" -> {"name"},
-	"newRefKeys" -> {"packageType","packageId","packageName"}
+	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder;
 
 azFileNames[auth_, azRefDevOpsPattern["devOps.artifact.package"]] := Module[
@@ -2467,8 +2428,7 @@ azDownloadByteArray[authorizationHeader_String, azRefDevOpsPattern["devOps.artif
 		"packageName" -> refData["packageName"],
 		"packageVersion" -> res["normalizedVersion"]
 	|>],
-	"searchFields" -> {"normalizedVersion"},
-	"newRefKeys" -> {"packageVersion","packageName","packageId","feedId"}
+	"searchFields" -> {"normalizedVersion"}
 |> // devOpsDefaultOperationsBuilder;
  
 azFileNames[auth_, azRefDevOpsPattern["devOps.artifact.version"]] := Module[

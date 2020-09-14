@@ -47,7 +47,7 @@ postmanCollectionImportByteArray[collection_ByteArray] := Module[
 
 postmanTemplateSlots[template_] := Module[{slots},
 	slots = (Cases[template,_TemplateSlot,Infinity] // DeleteDuplicates) /. TemplateSlot[s_] :> s;
-	<| #-> \[Placeholder] & /@ slots |>
+	<| #-> Global`\[Placeholder] & /@ slots |>
 ]
 
 

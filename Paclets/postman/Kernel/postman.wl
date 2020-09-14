@@ -11,7 +11,7 @@ postmanTemplateSlots;
 Begin["`Private`"];
 
 
-postmanCollectionImport[file_String] := importPostmanCollectionByteArray@ReadByteArray@file;
+postmanCollectionImport[file_String] := postmanCollectionImportByteArray@ReadByteArray@file;
 postmanCollectionImportByteArray[collection_ByteArray] := Module[
 	{data, importGroup, importItem, importRequest,strTemplate,importAuth},
 	importItem[item_Association] := <|

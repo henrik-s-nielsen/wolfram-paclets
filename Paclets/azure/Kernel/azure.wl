@@ -220,7 +220,7 @@ refToAzureId;
 Begin["`Private`"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Base*)
 
 
@@ -494,7 +494,7 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Azure*)
 
 
@@ -625,7 +625,7 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*DevOps*)
 
 
@@ -886,7 +886,7 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Azure kubernetes service*)
 
 
@@ -913,7 +913,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Log analytics*)
 
 
@@ -941,7 +941,7 @@ azLogAnalyticsTableStatistics[authorizationHeader_String,ref_, dateRange:{_DateO
 	", dateRange] /. ds_Dataset :> ds["Table_0",GroupBy["DataType"],Total /* (UnitConvert[#,Quantity[1,"Gigabytes"]]&),Quantity[#Quantity,#QuantityUnit]&][ReverseSort]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Workspaces*)
 
 
@@ -1054,7 +1054,7 @@ azLogAnalyticsKubeSearchContainerLogs[auth_,ref_, str_String, dateRange_: Null] 
 		ds_Dataset:>ds["Table_0"]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Application Gateway*)
 
 
@@ -1274,11 +1274,11 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*API manager*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Services*)
 
 
@@ -1305,7 +1305,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Loggers*)
 
 
@@ -1332,7 +1332,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Subscriptions*)
 
 
@@ -1362,7 +1362,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Products*)
 
 
@@ -1392,7 +1392,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*API's*)
 
 
@@ -1452,7 +1452,7 @@ azApiManagementApiRevisionList[auth_, azRefAzurePattern["azure.apiManagement.api
 AppendTo[relations, {"azure.apiManagement.api"->"azure.apiManagement.api.revision", {"azApiManagementApiRevisions","azApiManagementApiRevisionList"}}];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*API Schema's*)
 
 
@@ -1481,7 +1481,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Gateways*)
 
 
@@ -1519,7 +1519,7 @@ azApiManagementApiList[auth_, azRefAzurePattern["azure.apiManagement.gateway"]] 
 AppendTo[relations, {"azure.apiManagement.gateway"->"azure.apiManagement.api", {"azApiManagementApiList"}}];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Gateway hosts*)
 
 
@@ -1547,7 +1547,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Diagnostics*)
 
 
@@ -1575,7 +1575,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*API Operation*)
 
 
@@ -1604,7 +1604,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*API Release*)
 
 
@@ -1631,11 +1631,11 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Event Hubs*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Namespaces*)
 
 
@@ -1661,11 +1661,11 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Application Insights*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Components*)
 
 
@@ -1693,11 +1693,11 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Virtual Networks*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Virtual Networks*)
 
 
@@ -1724,7 +1724,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*DevOps*)
 
 
@@ -1771,7 +1771,7 @@ azIcon[azRefAzurePattern["devOps.organization"]] := azIcon[refData["azType"]];
 azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Projects*)
 
 
@@ -1798,7 +1798,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Git*)
 
 
@@ -2024,7 +2024,7 @@ azDownloadByteArray[auth_, azRefDevOpsPattern["devOps.git.file"]] :=
 	];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Build*)
 
 
@@ -2179,11 +2179,11 @@ azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
 	azFileNames[auth, ref["downloadUrl"]];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Release*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Release definition*)
 
 
@@ -2209,7 +2209,7 @@ azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Release*)
 
 
@@ -2265,7 +2265,7 @@ azEntitlements[auth_,azRefDevOpsPattern["devOps.user"]] :=
 	]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Graph*)
 
 
@@ -2278,7 +2278,7 @@ azDevOpvStorageKey[auth_, azRefDevOpsPattern["devOps.user"]] :=Module[{res},
 ] 
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Users*)
 
 
@@ -2303,7 +2303,7 @@ azDevOpvStorageKey[auth_, azRefDevOpsPattern["devOps.user"]] :=Module[{res},
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Users groups*)
 
 
@@ -2336,11 +2336,11 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Artifacts*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Feed*)
 
 
@@ -2366,7 +2366,7 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Packages*)
 
 
@@ -2405,7 +2405,7 @@ azDownloadByteArray[authorizationHeader_String, azRefDevOpsPattern["devOps.artif
 ]	
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Package versions*)
 
 

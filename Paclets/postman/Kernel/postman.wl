@@ -3,16 +3,16 @@
 BeginPackage["postman`"];
 
 
-importPostmanCollection;
-importPostmanCollectionByteArray;
-templateSlots
+postmanCollectionImport;
+postmanCollectionImportByteArray;
+postmanTemplateSlots;
 
 
 Begin["`Private`"];
 
 
-importPostmanCollection[file_String] := importPostmanCollectionByteArray@ReadByteArray@file;
-importPostmanCollectionByteArray[collection_ByteArray] := Module[
+postmanCollectionImport[file_String] := importPostmanCollectionByteArray@ReadByteArray@file;
+postmanCollectionImportByteArray[collection_ByteArray] := Module[
 	{data, importGroup, importItem, importRequest,strTemplate,importAuth},
 	importItem[item_Association] := <|
 		"name"->item["name"],
@@ -45,7 +45,7 @@ importPostmanCollectionByteArray[collection_ByteArray] := Module[
 ];
 
 
-templateSlots[template_] := Module[{slots},
+postmanTemplateSlots[template_] := Module[{slots},
 	slots = (Cases[template,_TemplateSlot,Infinity] // DeleteDuplicates) /. TemplateSlot[s_] :> s;
 	<| #-> \[Placeholder] & /@ slots |>
 ]

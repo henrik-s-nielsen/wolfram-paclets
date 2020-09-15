@@ -13,7 +13,7 @@
 (*- rename 	list to resource*)
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Header*)
 
 
@@ -91,6 +91,9 @@ azLogAnalyticsKubeSearchContainerLogs;
 azApiManagementServices;
 azApiManagementServiceList;
 azApiManagementServiceSearch;
+azApiManagementServicePolicies;
+azApiManagementServicePolicyList;
+azApiManagementServicePolicySearch;
 azApiManagementLoggers;
 azApiManagementLoggerList;
 azApiManagementLoggerSearch;
@@ -143,6 +146,10 @@ azAppGatewaySearch;
 (* VirtualNetwork *)
 azVirtualNetworks;
 azVirtualNetworkList;
+azVirtualNetworkSubnets;
+azVirtualNetworkSubnetList;
+azVirtualNetworkSubnetSearch;
+
 
 (* Azure DevOps - project *)
 azDevOpsProjects;
@@ -220,7 +227,7 @@ refToAzureId;
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
@@ -337,7 +344,10 @@ azHttpGet[authorizationHeader_String,  url_String] := Module[
 	req = HTTPRequest[url, <|
 		Method -> "GET",
 		"ContentType" -> "application/json",
-		"Headers" -> {"Authorization" -> authorizationHeader}
+		"Headers" -> {
+			"Authorization" -> authorizationHeader,
+			"Accept" -> "application/json"
+		}
 	|>];
 	Sow[req];
 	res = URLRead@req;
@@ -1274,12 +1284,16 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*API manager*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Services*)
+
+
+(* ::Subsubsection::Closed:: *)
+(*Service*)
 
 
 cfg = <|
@@ -1303,6 +1317,33 @@ cfg = <|
 |>;
 
 azureDefaultOperationsBuilder[cfg];
+
+
+(* ::Subsubsection::Closed:: *)
+(*Service (global) policy*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.service.policy",
+	"nameSingular"-> "ApiManagementServicePolicy",
+	"namePlural"-> "ApiManagementServicePolicies",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData},  refData["policyName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/policy",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/dev-portal-poc/apim-apis",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/policies/policy?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/policies?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.service"],
+	"parentAzType" -> "azure.apiManagement.service",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"policyName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Subsection::Closed:: *)
@@ -1693,11 +1734,11 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Virtual Networks*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Virtual Networks*)
 
 
@@ -1717,6 +1758,34 @@ cfg = <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"networkName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection:: *)
+(*Sub-nets*)
+
+
+cfg = <|
+	"azType"->"azure.virtualNetwork.subnets",
+	"nameSingular"-> "VirtualNetworkSubnet",
+	"namePlural"-> "VirtualNetworkSubnets",
+	"panelIcon"-> icons["azure.virtualNetwork"],
+	"panelLabelFunc"-> Function[{refData}, refData["subnetName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/virtualNetworks/`networkName`/subnets",
+	"getUrl"-> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/virtualNetworks/`networkName`/subnets/`subnetName`?api-version=2020-05-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/virtualNetworks/`networkName`/subnets?api-version=2020-05-01",
+	"listFilter" -> azRefAzurePattern["azure.virtualNetwork"],
+	"parentAzType" -> "azure.virtualNetwork",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"networkName" -> getIdKeyValue[res["id"],"virtualNetworks/"],
+		"subnetName" -> res["name"]
 	|>],
 	"searchFields" -> {"name"}
 |>;

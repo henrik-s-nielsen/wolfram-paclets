@@ -149,7 +149,13 @@ azVirtualNetworkList;
 azVirtualNetworkSubnets;
 azVirtualNetworkSubnetList;
 azVirtualNetworkSubnetSearch;
-
+azVirtualNetworkNics;a
+azVirtualNetworkNicList;
+azVirtualNetworkNicSearch;
+azVirtualNetworkNicRouteTableList;
+azVirtualNetworkPublicIps;
+azVirtualNetworkPublicIpList;
+azVirtualNetworkPublicIpSearch;
 
 (* Azure DevOps - project *)
 azDevOpsProjects;
@@ -227,7 +233,7 @@ refToAzureId;
 Begin["`Private`"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Base*)
 
 
@@ -319,7 +325,8 @@ azShellLogin[] := RunProcess[{$azExe,"login"}] /. KeyValuePattern["ExitCode"->0]
 $azExe = "C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd";
 
 azParseRestResponde[res_] := 
-	res /. r:HTTPResponse[_,KeyValuePattern[{"StatusCode"->200}],___] :> Dataset@ImportByteArray[r["BodyByteArray"],"RawJSON"]
+	res /. r:HTTPResponse[_,KeyValuePattern[{"StatusCode"->(200|202)}],___] :> 
+		Dataset@ImportByteArray[r["BodyByteArray"],"RawJSON"]
 
 
 azShellGetToken[azRef[KeyValuePattern["subscriptionId" -> id_String]]] := azShellGetToken[id];
@@ -336,7 +343,6 @@ toIso8601[date_DateObject] := DateString[DateObject[date,TimeZone->"Zulu"],"ISOD
 
 azHttpGetPaged[auth_ ,args___] := azHttpGet[auth, args] // (pageData[auth, #] /. l_List :> Dataset@l) & 
 
-Clear[azHttpGet];
 azHttpGet[auth_,{urlTemplate_String,azRef[data_Association]}, args___]:=
 	azHttpGet[auth,StringTemplate[urlTemplate][URLEncode/@ data],args];
 azHttpGet[authorizationHeader_String,  url_String] := Module[
@@ -368,6 +374,9 @@ azHttpDelete[authorizationHeader_String,  url_String] := Module[
 	azParseRestResponde@res
 ]
 
+azHttpPost[auth_, ref_] := azHttpPost[auth,ref, <||>];
+azHttpPost[auth_,{urlTemplate_String,azRef[refData_Association]}, args___]:=
+	azHttpPost[auth,StringTemplate[urlTemplate][URLEncode/@ refData],args];
 azHttpPost[authorizationHeader_String,  url_String, data_Association] := Module[
 	{req, res},
 	req = HTTPRequest[url, <|
@@ -1284,11 +1293,11 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*API manager*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Services*)
 
 
@@ -1738,12 +1747,16 @@ azureDefaultOperationsBuilder[cfg];
 (*Virtual Networks*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Virtual Networks*)
 
 
+(* ::Subsubsection::Closed:: *)
+(*Virtual network*)
+
+
 cfg = <|
-	"azType"->"azure.virtualNetwork",
+	"azType"->"azure.virtualNetworks.network",
 	"nameSingular"-> "VirtualNetwork",
 	"namePlural"-> "VirtualNetworks",
 	"panelIcon"-> icons["azure.virtualNetwork"],
@@ -1765,12 +1778,12 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Sub-nets*)
 
 
 cfg = <|
-	"azType"->"azure.virtualNetwork.subnets",
+	"azType"->"azure.virtualNetworks.subnets",
 	"nameSingular"-> "VirtualNetworkSubnet",
 	"namePlural"-> "VirtualNetworkSubnets",
 	"panelIcon"-> icons["azure.virtualNetwork"],
@@ -1779,13 +1792,77 @@ cfg = <|
 	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/virtualNetworks/`networkName`/subnets",
 	"getUrl"-> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/virtualNetworks/`networkName`/subnets/`subnetName`?api-version=2020-05-01",
 	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/virtualNetworks/`networkName`/subnets?api-version=2020-05-01",
-	"listFilter" -> azRefAzurePattern["azure.virtualNetwork"],
-	"parentAzType" -> "azure.virtualNetwork",
+	"listFilter" -> azRefAzurePattern["azure.virtualNetwork.network"],
+	"parentAzType" -> "azure.virtualNetworks.network",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"networkName" -> getIdKeyValue[res["id"],"virtualNetworks/"],
 		"subnetName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection:: *)
+(*Network interface*)
+
+
+cfg = <|
+	"azType"->"azure.virtualNetwork.nic",
+	"nameSingular"-> "VirtualNetworkNic",
+	"namePlural"-> "VirtualNetworkNics",
+	"panelIcon"-> icons["azure.virtualNetwork.nic"],
+	"panelLabelFunc"-> Function[{refData}, refData["interfaceName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/virtualnetwork/networkinterfaces",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/reourceGroupName/providers/Microsoft.Network/virtualNetworks/`networkName`/overview",
+	"getUrl"-> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/networkInterfaces/`interfaceName`?api-version=2020-05-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.Network/networkInterfaces?api-version=2020-05-01",
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"interfaceName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+
+azVirtualNetworkNicRouteTableList[auth_, azRefAzurePattern["azure.virtualNetwork.nic"]] := 
+	azHttpPost[
+		auth, {
+			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/networkInterfaces/`interfaceName`/effectiveRouteTable?api-version=2020-05-01",
+			ref
+		}
+	] /. ds_Dataset :> ds;
+
+
+(* ::Subsection:: *)
+(*Public IP Addresses*)
+
+
+cfg = <|
+	"azType"->"azure.virtualNetwork.publicIp",
+	"nameSingular"-> "VirtualNetworkPublicIp",
+	"namePlural"-> "VirtualNetworkPublicIps",
+	"panelIcon"-> icons["azure.virtualNetwork.publicIp"],
+	"panelLabelFunc"-> Function[{refData}, refData["addressName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/virtualnetwork/publicipaddresses",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/reourceGroupName/providers/Microsoft.Network/virtualNetworks/`networkName`/overview",
+	"getUrl"-> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/publicIPAddresses/`addressName`?api-version=2020-05-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.Network/publicIPAddresses?api-version=2020-05-01",
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"addressName" -> res["name"]
 	|>],
 	"searchFields" -> {"name"}
 |>;

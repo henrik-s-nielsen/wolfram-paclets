@@ -168,6 +168,12 @@ azVirtualNetworkRouteTables;
 azVirtualNetworkRouteTableList;
 azVirtualNetworkRouteTableSearch;
 
+(* Key Vaults *)
+azKeyVaults;
+azKeyVaultList;
+azKeyVaultSearch;
+azKeyVaultKeyList;
+
 (* Azure DevOps - project *)
 azDevOpsProjects;
 azDevOpsProjectList;
@@ -247,11 +253,11 @@ refType;
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Core*)
 
 
@@ -370,7 +376,7 @@ azHttpGet[authorizationHeader_String,  url_String] := Module[
 		}
 	|>];
 	Sow[req];
-	res = URLRead@req;
+	res = URLRead[req, Interactive -> False];
 	Sow[res];
 	azParseRestResponde@res
 ]
@@ -383,7 +389,7 @@ azHttpDelete[authorizationHeader_String,  url_String] := Module[
 		"Headers" -> {"Authorization" -> authorizationHeader}
 	|>];
 	Sow[req];
-	res = URLRead@req;
+	res = URLRead[req, Interactive -> False];
 	Sow[res];
 	azParseRestResponde@res
 ]
@@ -400,7 +406,7 @@ azHttpPost[authorizationHeader_String,  url_String, data_Association] := Module[
 		"Body" -> ExportString[data,"RawJSON"]
 	|>];
 	Sow[req];
-	res = URLRead@req;
+	res = URLRead[req, Interactive -> False];
 	Sow[res];
 	azParseRestResponde@res
 ]
@@ -414,7 +420,7 @@ azHttpPut[authorizationHeader_String,  url_String, data_Association] := Module[
 		"Body" -> ExportString[data,"RawJSON"]
 	|>];
 	Sow[req];
-	res = URLRead@req;
+	res = URLRead[req, Interactive -> False];
 	Sow[res];
 	azParseRestResponde@res
 ]
@@ -428,7 +434,7 @@ azHttpPatch[authorizationHeader_String,  url_String, data_Association] := Module
 		"Body" -> ExportString[data,"RawJSON"]
 	|>];
 	Sow[req];
-	res = URLRead@req;
+	res = URLRead[req, Interactive -> False];
 	Sow[res];
 	azParseRestResponde@res
 ]
@@ -441,7 +447,7 @@ azDownloadByteArray[authorizationHeader_String,  url_String] := Module[
 		"Headers" -> {"Authorization" -> authorizationHeader}
 	|>];
 	Sow[req];
-	res = URLRead@req;
+	res = URLRead[req, Interactive -> False];
 	Sow[res];
 	res["BodyByteArray"]
 ]
@@ -461,7 +467,7 @@ azFileNames[authorizationHeader_String,  url_String] := Module[
 		"Headers" -> {"Authorization" -> authorizationHeader}
 	|>];
 	Sow[req];
-	res = URLRead@req;
+	res = URLRead[req, Interactive -> False];
 	Sow[res];
 	ImportByteArray[res["BodyByteArray"],"ZIP"]
 ]
@@ -960,7 +966,7 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Resources*)
 
 
@@ -975,7 +981,7 @@ azResourceList[auth_, azRefAzurePattern["azure.subscription"]] :=
 	] /. ds_Dataset :> ds["value",All, <| "azRef" -> azMicrosoftIdToAzRef[#id], # |>&];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Azure kubernetes service*)
 
 
@@ -1799,7 +1805,7 @@ azureDefaultOperationsBuilder[cfg];
 (*Application Insights*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Components*)
 
 
@@ -1981,7 +1987,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Route tables*)
 
 
@@ -2006,6 +2012,50 @@ cfg = <|
 |>;
 
 azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Section:: *)
+(*Key Vault*)
+
+
+(* ::Subsection:: *)
+(*Vaults*)
+
+
+cfg = <|
+	"azType"->"azure.keyVault",
+	"nameSingular"->"KeyVault",
+	"namePlural"->"KeyVaults",
+	"panelIcon"-> icons["azure.keyVault"],
+	"panelLabelFunc"-> Function[{refData}, refData["vaultName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/keyvault/vaults",
+	"uiUrl" -> "/resource/subscriptions/`subscription`/resourceGroups/`resourceGroupName`/providers/Microsoft.KeyVault/vaults/`vaultName`/overview",
+	"getUrl"-> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.KeyVault/vaults/`vaultName`?api-version=2019-09-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.KeyVault/vaults?api-version=2019-09-01",
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"vaultName" -> res["name"],
+		"vaultBaseUrl" -> res["properties","vaultUri"]
+	|>],
+	"searchFields" -> {"name"},
+	"microsoftType" -> "Microsoft.KeyVault/vaults",
+	"microsoftIdTemplate" -> "/subscriptions/subscriptionId/resourceGroups/resourceGroupName/providers/Microsoft.KeyVault/vaults/`vaultName`"
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection:: *)
+(*Keys*)
+
+
+azKeyVaultKeyList[auth_, azRefAzurePattern["azure.keyVault"]] := 
+	azHttpGet[auth,
+		ref["vaultBaseUrl"] <> "/keys?api-version=7.1"
+	] ;
 
 
 (* ::Section::Closed:: *)

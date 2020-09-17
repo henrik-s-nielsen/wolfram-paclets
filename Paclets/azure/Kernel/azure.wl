@@ -57,6 +57,10 @@ azShellLogin;
 azShellGetSubscriptions;
 azShellGetSubscriptionList;
 
+(* Resources *)
+azResources;
+azResourceList;
+
 (* Auzure kubernetes service *)
 azAksClusters;
 azAksClusterList;
@@ -142,6 +146,7 @@ azAppInsightComponentSearch;
 azAppGateways;
 azAppGatewayList;
 azAppGatewaySearch;
+azAppGatewayAvailableWafRuleList;
 
 (* VirtualNetwork *)
 azVirtualNetworks;
@@ -149,13 +154,19 @@ azVirtualNetworkList;
 azVirtualNetworkSubnets;
 azVirtualNetworkSubnetList;
 azVirtualNetworkSubnetSearch;
-azVirtualNetworkNics;a
+azVirtualNetworkNics;
 azVirtualNetworkNicList;
 azVirtualNetworkNicSearch;
 azVirtualNetworkNicRouteTableList;
 azVirtualNetworkPublicIps;
 azVirtualNetworkPublicIpList;
 azVirtualNetworkPublicIpSearch;
+azVirtualNetworkSecurityGroups;
+azVirtualNetworkSecurityGroupList;
+azVirtualNetworkSecurityGroupSearch;
+azVirtualNetworkRouteTables;
+azVirtualNetworkRouteTableList;
+azVirtualNetworkRouteTableSearch;
 
 (* Azure DevOps - project *)
 azDevOpsProjects;
@@ -227,7 +238,10 @@ azDevOpsAritfactPackageVersionSearch;
 
 
 (* temp *)
+azMicrosoftIdToAzRef;
 refToAzureId;
+parseUri;
+refType;
 
 
 Begin["`Private`"];
@@ -275,23 +289,23 @@ azRefresh[auth_, ref_azRef] := azInfo[auth, ref] /. ds_Dataset :> ds["azRef"] ;
 
 (* parseUrl[someUrl, "/resource/`resourceId`/group/`groupName`"]  *)
 
-parseUrl[txt_String, strPattern_String] := parseUrl[
+parseUri[txt_String, strPattern_String] := parseUri[
 	txt,
 	StringSplit[strPattern, "`" ~~ key : (Except["`"] ..) ~~ "`" :> Key@key],
 	<||>
 ];
-parseUrl[txt_String, {first_String, rest___}, result_Association] := If[
+parseUri[txt_String, {first_String, rest___}, result_Association] := If[
 	StringMatchQ[txt, StartOfString ~~ first ~~ ___, IgnoreCase -> True],
-	parseUrl[StringReplace[txt, StartOfString ~~ first :> "" ], {rest}, result],
+	parseUri[StringReplace[txt, StartOfString ~~ first :> "", IgnoreCase->True], {rest}, result],
 	$Failed
 ];
-parseUrl[txt_String, {Key[key_String], rest___}, result_Association] :=
-	parseUrl[
+parseUri[txt_String, {Key[key_String], rest___}, result_Association] :=
+	parseUri[
 		StringReplace[txt, (StartOfString ~~ Except["/"] ..) -> ""],
 		{rest},
 		Append[result, key -> StringCases[txt, (StartOfString ~~ Except["/"] ..)] /. {v_} :> v]
 	];
-parseUrl[_, {}, result_Association] := result;
+parseUri[_, {}, result_Association] := result;
 
 
 relations={};
@@ -623,6 +637,18 @@ azParent[auth_, azRefDevOpsPattern[TemplateSlot["azType"]]] :=
 AppendTo[relations, {TemplateSlot["azType"]->TemplateSlot["parentAzType"], {"azParent"}}];
 ]][cfg] // ReleaseHold
 
+azureMicrosoftIdBuilder[cfg:KeyValuePattern[{
+	"azType"->_String,
+	"microsoftType"->_String,
+	"microsoftIdTemplate"->_String
+}]] := TemplateObject[Hold[
+microsoftIdInfo[TemplateSlot["microsoftType"]] :=
+<|
+	"azType" ->  TemplateSlot["azType"],
+	"idTemplate" -> TemplateSlot["microsoftIdTemplate"]
+|>
+]][cfg] // ReleaseHold
+
 
 azureDefaultOperationsBuilder[cfg_Association] := Module[
 	{res = {}},
@@ -639,9 +665,33 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 	If[KeyExistsQ[cfg, "parentAzType"],
 		azureRelationBuilder[cfg]; devOpsParentBuilder[cfg],
 		Null] // AppendTo[res,#] &;
+	If[KeyExistsQ[cfg, "microsoftType"],
+		azureMicrosoftIdBuilder[cfg],
+		Null] // AppendTo[res,#] &;				
 	res
 ];
 
+
+
+hasUpperQ[s_String]:= !LowerCaseQ[StringJoin@StringCases[s,LetterCharacter]];
+
+microsoftIdInfo[msType_String] := microsoftIdInfo@ToLowerCase@msType /; hasUpperQ[msType];
+microsoftIdInfo[msType_] := <|
+	"idTemplate" -> "",
+	"azType" -> Missing[msType]
+|>
+
+azMsTypeFromId[msId_String] :=
+	StringCases[msId,"/providers/"~~type:((Except["/"]..)~~"/"~~(Except["/"]..)):>type,IgnoreCase->True] /.
+		{v_} :> v; 
+
+azMicrosoftIdToAzRef[msId_String]:=With[
+	{idInf=microsoftIdInfo@azMsTypeFromId@msId},
+	azRef[<|
+		"azType" -> idInf["azType"],
+		parseUri[msId, idInf["idTemplate"]]
+	|> ]
+]
 
 
 (* ::Subsection::Closed:: *)
@@ -836,24 +886,29 @@ devOpsDefaultOperationsBuilder[cfg_Association] := Module[
 (* Notebook define azIcons variable *)
 NotebookImport[DirectoryName@FindFile@"azure`"<>"icons.nb","Input"->"Expression"];
 icons =  Image[#,ImageSize->15]& /@ azIcons;
-panelInfo[_] := <|"icon"->icons["azure.default"],"labelFunc"->("???"&)|>
+panelInfo[_] := <|
+	"icon"->icons["azure.default"],
+	"labelFunc"->("-"&)
+|>
 
 refType[KeyValuePattern["azType"->type_String]] := (Last@StringSplit[type,"."] // (Last@StringSplit[#,"/"] &)) /; 
 	StringContainsQ[type,"."];
+refType[KeyValuePattern["azType" -> Missing[t_String]]] := t;
 refType[_] := "unkown type";
 
 azRef /: MakeBoxes[ref:azRef[refData_Association], fmt_] :=
-Block[{type, bg, display, panelInf},
+Block[{type, typeLabel, bg, display, panelInf},
+	type = refData["azType"] /. Missing[t_]:>t;
+	typeLabel = refType[refData];
 	panelInf = panelInfo[refData["azType"]];
 	bg = Which[
-		StringContainsQ[refData["azType"],"azure."], Lighter[LightBlue],
-		StringContainsQ[refData["azType"],"devOps."], Lighter[LightGreen],
+		StringContainsQ[type, "azure."], Lighter[LightBlue],
+		StringContainsQ[type ,"devOps."], Lighter[LightGreen],
 		True, Lighter[Lighter[LightRed]]
 	];
-	type =  refType[refData];
 	display = Tooltip[
 		Framed[
-			Row[{panelInf["icon"]," ",Style[type, Italic], ": ", Style[panelInf["labelFunc"][refData],Bold]}],
+			Row[{panelInf["icon"]," ",Style[typeLabel, Italic], ": ", Style[panelInf["labelFunc"][refData],Bold]}],
 			Background -> bg,
 			BaselinePosition -> Baseline,
 			BaseStyle -> "Panel",
@@ -905,12 +960,27 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
+(*Resources*)
+
+
+azResources[auth_, ref_] := azResourceList[auth, ref] /. ds_Dataset :> Normal@ds[All,"azRef"]
+
+azResourceList[auth_, azRefAzurePattern["azure.subscription"]] := 
+	azHttpGet[
+		auth, {
+			"https://management.azure.com/subscriptions/`subscriptionId`/resources?api-version=2020-06-01",
+			ref
+		}
+	] /. ds_Dataset :> ds["value",All, <| "azRef" -> azMicrosoftIdToAzRef[#id], # |>&];
+
+
+(* ::Section:: *)
 (*Azure kubernetes service*)
 
 
 cfg = <|
-	"azType"->"azure.Aks.Cluster",
+	"azType"->"azure.aks.cluster",
 	"nameSingular"->"AksCluster",
 	"namePlural"->"AksClusters",
 	"panelIcon"-> icons["azure.aks"],
@@ -926,10 +996,13 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"clusterName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"microsoftType" -> "Microsoft.ContainerService/managedClusters",
+	"microsoftIdTemplate" -> "/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.ContainerService/managedClusters/`clusterName`"
+
 |>;
 
-azureDefaultOperationsBuilder[cfg];
+azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Section::Closed:: *)
@@ -1094,10 +1167,21 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"gatewayName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"microsoftType" -> "Microsoft.Network/applicationGateways",
+	"microsoftIdTemplate" -> "/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/applicationGateways/`gatewayName`"
 |>;
 
 azureDefaultOperationsBuilder[cfg]
+
+
+azAppGatewayAvailableWafRuleList[auth_, azRefAzurePattern["azure.subscription"]] := 
+	azHttpGet[
+		auth, {
+			"https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.Network/applicationGatewayAvailableWafRuleSets?api-version=2020-05-01",
+			ref
+		}
+	] /. ds_Dataset :> ds["value"];
 
 
 (* ::Section::Closed:: *)
@@ -1743,7 +1827,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Virtual Networks*)
 
 
@@ -1806,7 +1890,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Network interface*)
 
 
@@ -1843,7 +1927,7 @@ azVirtualNetworkNicRouteTableList[auth_, azRefAzurePattern["azure.virtualNetwork
 	] /. ds_Dataset :> ds;
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Public IP Addresses*)
 
 
@@ -1863,6 +1947,60 @@ cfg = <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"addressName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection::Closed:: *)
+(*Network Security Groups*)
+
+
+cfg = <|
+	"azType"->"azure.virtualNetwork.securityGroup",
+	"nameSingular"-> "VirtualNetworkSecurityGroup",
+	"namePlural"-> "VirtualNetworkSecurityGroups",
+	"panelIcon"-> icons["azure.virtualNetwork.securityGroup"],
+	"panelLabelFunc"-> Function[{refData}, refData["securityGroupName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/virtualnetwork/networksecuritygroups",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/networkSecurityGroups/`securityGroupName`/overview",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/networkSecurityGroups/`securityGroupName`?api-version=2020-05-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.Network/networkSecurityGroups?api-version=2020-05-01",
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"securityGroupName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection::Closed:: *)
+(*Route tables*)
+
+
+cfg = <|
+	"azType"->"azure.virtualNetwork.routeTable",
+	"nameSingular"-> "VirtualNetworkRouteTable",
+	"namePlural"-> "VirtualNetworkRouteTables",
+	"panelIcon"-> icons["azure.virtualNetwork.routeTable"],
+	"panelLabelFunc"-> Function[{refData}, refData["routeTableName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/virtualnetwork/routetables",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/routeTables/`routeTableName`/overview",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.Network/routeTables/`routeTableName`?api-version=2020-05-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.Network/routeTables?api-version=2020-05-01",
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"routeTableName" -> res["name"]
 	|>],
 	"searchFields" -> {"name"}
 |>;

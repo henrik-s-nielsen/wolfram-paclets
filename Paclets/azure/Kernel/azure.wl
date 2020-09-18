@@ -242,6 +242,11 @@ azDevOpsArtifactPackageVersions;
 azDevOpsArtifactPackageVersionList;
 azDevOpsAritfactPackageVersionSearch;
 
+(* Azure DevOps - Task Agent *)
+azDevOpsAgentTaskGroups;
+azDevOpsAgentTaskGroupList;
+azDevOpsAgentTaskGroupSearch;
+
 
 (* temp *)
 azMicrosoftIdToAzRef;
@@ -700,7 +705,7 @@ azMicrosoftIdToAzRef[msId_String]:=With[
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*DevOps*)
 
 
@@ -846,7 +851,7 @@ devOpsParentBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
 	"parentAzType"->_String
 }]] := TemplateObject[Hold[
-azParent[azRefDevOpsPattern[TemplateSlot["azType"]]] :=
+azParent[auth_, azRefDevOpsPattern[TemplateSlot["azType"]]] :=
 	azParent[auth, ref, TemplateSlot["parentAzType"]];
 AppendTo[relations, {TemplateSlot["azType"]->TemplateSlot["parentAzType"], {"azParent"}}];
 ]][cfg] // ReleaseHold
@@ -2014,11 +2019,11 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Key Vault*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Vaults*)
 
 
@@ -2048,7 +2053,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Keys*)
 
 
@@ -2058,7 +2063,7 @@ azKeyVaultKeyList[auth_, azRefAzurePattern["azure.keyVault"]] :=
 	] ;
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*DevOps*)
 
 
@@ -2105,7 +2110,7 @@ azIcon[azRefAzurePattern["devOps.organization"]] := azIcon[refData["azType"]];
 azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Projects*)
 
 
@@ -2117,7 +2122,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 	"panelLabelFunc"-> Function[{refData},refData["projectName"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/?view=azure-devops-rest-6.0", 
 	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectName`",
-	"getUrl"->"https://dev.azure.com/`organizationName`/_apis/projects/`projectName`?api-version=6.0-preview.4",
+	"getUrl"->"https://dev.azure.com/`organizationName`/_apis/projects/`projectId`?api-version=6.0-preview.4",
 	"listUrl" -> "https://dev.azure.com/`organizationName`/_apis/projects?api-version=2.0",
 	"listFilter" -> azRefDevOpsPattern["devOps.organization"],
 	"parentAzType" -> "devOps.organization",
@@ -2136,7 +2141,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 (*Git*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Repositories*)
 
 
@@ -2170,7 +2175,7 @@ azDevOpsGitClone[auth_, azRefDevOpsPattern["devOps.git.repository"], folder_Stri
 ];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Refs*)
 
 
@@ -2214,7 +2219,7 @@ azDevOpsGitRefList[authorizationHeader_String, azRefDevOpsPattern["devOps.git.co
 AppendTo[relations, {"devOps.git.ref"->"devOps.git.commit", {"azDevOpsGitRefs","azDevOpsGitRefList"}}];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Commits*)
 
 
@@ -2670,11 +2675,11 @@ azDevOpsGroupList[authorizationHeader_String, azRefDevOpsPattern["devOps.user"]]
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Artifacts*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Feed*)
 
 
@@ -2785,6 +2790,39 @@ azDownloadFile[_String, azRefDevOpsPattern["devOps.artifact.version"], path_Stri
 		"--name", refData["packageName"], 
 		"--version",refData["packageVersion"],
 		"--path",path}] /. KeyValuePattern["ExitCode" -> 0] -> path
+
+
+(* ::Subsection:: *)
+(*Task Agent*)
+
+
+(* ::Subsubsection:: *)
+(*Task Groups*)
+
+
+ <|
+	"azType"->"devOps.taskAgent.taskGroup",
+	"nameSingular"->"AgentTaskGroup",
+	"namePlural"->"AgentTaskGroups",
+	"panelIcon"-> icons["devOps.pipeline"],
+	"panelLabelFunc"-> Function[{refData},refData["taskGroupName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/distributedtask/taskgroups?view=azure-devops-rest-6.0",
+	"uiUrl" -> "https://dev.azure.com/`organizationNmae`/`projectId`/_taskgroup/`taskGroupId`",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/distributedtask/taskgroups/`taskGroupId`?api-version=6.0-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.project"],
+	"parentAzType" -> "devOps.project",
+	"listResultKeysFunc" -> Function[{res}, <| 
+		"organizationName" -> ref["organizationName"], 
+		"projectId" -> ref["projectId"],
+		"taskGroupName" -> res["name"],
+		"taskGroupId" -> res["id"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
+
+
+azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
+	azDevOpsAgentTaskGroupList[auth,azParent[auth, ref]] /. ds_Dataset :> ds[Select[#id==ref["taskGroupId"]&]][1]
 
 
 (* ::Section::Closed:: *)

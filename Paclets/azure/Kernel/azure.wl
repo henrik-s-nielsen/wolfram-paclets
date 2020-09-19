@@ -284,7 +284,7 @@ Begin["`Private`"];
 (*Base*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Core*)
 
 
@@ -560,7 +560,7 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Azure*)
 
 
@@ -1217,11 +1217,11 @@ azAppGatewayAvailableWafRuleList[auth_, azRefAzurePattern["azure.subscription"]]
 	] /. ds_Dataset :> ds["value"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Monitor*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Log Query*)
 
 
@@ -1410,7 +1410,7 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*API manager*)
 
 
@@ -1588,7 +1588,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*API revision*)
 
 
@@ -1648,7 +1648,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Gateways*)
 
 
@@ -2119,7 +2119,7 @@ keyValueContainsQ[data_Association, key_String, pattern_] :=
 keyValueContainsQ[data_Association, key_String, pattern_] := False;	
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Organization*)
 
 
@@ -2128,8 +2128,10 @@ panelInfo["devOps.organization"] := <|
 	"labelFunc"->Function[{refData},refData["organizationName"]]
 |>;
 
-azIcon[azRefAzurePattern["devOps.organization"]] := azIcon[refData["azType"]];
+azIcon[ref:azRef[refData:KeyValuePattern["azType"->"devOps.organization"]]] := azIcon[refData["azType"]];
 azIcon["devOps.organization"] := icons["devOps.organization"];
+
+azInfo[auth_, ref:azRef[KeyValuePattern["azType"->"devOps.organization"]]] := ref;
 
 
 (* ::Subsection::Closed:: *)
@@ -2159,7 +2161,7 @@ azIcon["devOps.organization"] := icons["devOps.organization"];
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Git*)
 
 
@@ -2197,7 +2199,7 @@ azDevOpsGitClone[auth_, azRefDevOpsPattern["devOps.git.repository"], folder_Stri
 ];
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Refs*)
 
 
@@ -2872,7 +2874,7 @@ azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Agents*)
 
 
@@ -3018,7 +3020,7 @@ azDevOpsAgentCloudTypes[auth_, azRefDevOpsPattern["devOps.organization"]] :=
 
 
 <|
-	"azType"->"devOps.taskAgent.queues",
+	"azType"->"devOps.taskAgent.queue",
 	"nameSingular"->"AgentQueue",
 	"namePlural"->"AgentQueues",
 	"panelIcon"-> icons["devOps.pipeline"],
@@ -3036,6 +3038,18 @@ azDevOpsAgentCloudTypes[auth_, azRefDevOpsPattern["devOps.organization"]] :=
 	|>],
 	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
+
+azDevOpsAgentQueueList[auth_, azRefDevOpsPattern["devOps.releaseDefinition"]] := functionCatch["azDevOpsAgentQueueList", Module[
+	{queueIds, project, queues},
+	queueIds = azInfo[auth, ref]
+		["environments",All,"deployPhases",All,"deploymentInput","queueId"] // 
+			Normal // Flatten // DeleteDuplicates // assertPattern[{_Integer...}];
+	project =  azParent[auth, ref] // assertPattern[_azRef];
+	queues = azDevOpsAgentQueueList[auth, project] // assertPattern[_Dataset];
+	queues[Select[MemberQ[queueIds,#["id"]]&]]
+]]
+	
+AppendTo[relations, {"devOps.releaseDefinition"->"devOps.taskAgent.queue", {"azDevOpsAgentQueues","azDevOpsAgentQueueList"}}];
 
 
 (* ::Subsubsection:: *)

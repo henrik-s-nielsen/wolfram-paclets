@@ -254,7 +254,20 @@ azDevOpsAgentList;
 azDevOpsAgentSearch;
 azDevOpsAgentEnvironments;
 azDevOpsAgentEnvironmentList;
-adDevOpsAgentEnvironmentSearch;
+azDevOpsAgentEnvironmentSearch;
+azDevOpsAgentVariableGroups;
+azDevOpsAgentVariableGroupList;
+azDevOpsAgentVariableGroupSearch;
+azDevOpsAgentClouds;
+azDevOpsAgentCloudList;
+azDevOpsAgentCloudSearch;
+azDevOpsAgentCloudTypes;
+azDevOpsAgentDeploymentGroups;
+azDevOpsAgentDeploymentGroupList;
+azDevOpsAgentDeploymentGroupSearch;
+azDevOpsAgentQueues;
+azDevOpsAgentQueueList;
+azDevOpsAgentQueueSearch;
 
 
 (* temp *)
@@ -267,7 +280,7 @@ refType;
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
@@ -714,7 +727,7 @@ azMicrosoftIdToAzRef[msId_String]:=With[
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*DevOps*)
 
 
@@ -2805,7 +2818,7 @@ azDownloadFile[_String, azRefDevOpsPattern["devOps.artifact.version"], path_Stri
 (*Task Agent*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Task Groups*)
 
 
@@ -2834,7 +2847,7 @@ azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
 	azDevOpsAgentTaskGroupList[auth,azParent[auth, ref]] /. ds_Dataset :> ds[Select[#id==ref["taskGroupId"]&]][1]
 
 
-(* ::Subsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Agent Pools*)
 
 
@@ -2859,7 +2872,7 @@ azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsection:: *)
+(* ::Subsubsection:: *)
 (*Agents*)
 
 
@@ -2871,8 +2884,8 @@ azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
 	"panelLabelFunc"-> Function[{refData},refData["agentName"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/distributedtask/agents?view=azure-devops-rest-6.1",
 	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_settings/agentqueues",
-	"getUrl"->"https://dev.azure.com/`organizationName`/_apis/distributedtask/pools/`poolId`/agents/`agentId`?api-version=6.1-preview.1",
-	"listUrl" -> "https://dev.azure.com/`organizationName`/_apis/distributedtask/pools/`poolId`/agents?api-version=6.1-preview.1",
+	"getUrl"->"https://dev.azure.com/`organizationName`/_apis/distributedtask/pools/`poolId`/agents/`agentId`?includeCapabilities=true&includeAssignedRequest=true,includeLastCompletedRequest=true&api-version=6.1-preview.1",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/_apis/distributedtask/pools/`poolId`/agents?includeCapabilities=true&api-version=6.1-preview.1",
 	"listFilter" -> azRefDevOpsPattern["devOps.taskAgent.agentPool"],
 	"parentAzType" -> "devOps.taskAgent.agentPool",
 	"listResultKeysFunc" -> Function[{res}, <| 
@@ -2885,7 +2898,7 @@ azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Environments*)
 
 
@@ -2909,6 +2922,124 @@ azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
 	|>],
 	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
+
+
+(* ::Subsubsection::Closed:: *)
+(*Variable Groups*)
+
+
+<|
+	"azType"->"devOps.taskAgent.variableGroup",
+	"nameSingular"->"AgentVariableGroup",
+	"namePlural"->"AgentVariableGroups",
+	"panelIcon"-> icons["devOps.pipeline"],
+	"panelLabelFunc"-> Function[{refData},refData["groupName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/distributedtask/variablegroups?view=azure-devops-rest-6.1",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_library?itemType=VariableGroups",
+	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/distributedtask/variablegroups/`groupId`?api-version=6.1-preview.2",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/distributedtask/variablegroups?api-version=6.1-preview.2",
+	"listFilter" -> azRefDevOpsPattern["devOps.project"],
+	"parentAzType" -> "devOps.project",
+	"listResultKeysFunc" -> Function[{res}, <| 
+		"organizationName" -> ref["organizationName"], 
+		"projectId" -> ref["projectId"],
+		"groupName" -> res["name"],
+		"groupId" -> res["id"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
+
+
+
+(* ::Subsubsection::Closed:: *)
+(*Clouds*)
+
+
+<|
+	"azType"->"devOps.taskAgent.clouds",
+	"nameSingular"->"AgentCloud",
+	"namePlural"->"AgentClouds",
+	"panelIcon"-> icons["devOps.pipeline"],
+	"panelLabelFunc"-> Function[{refData},refData["cloudName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/distributedtask/agentclouds?view=azure-devops-rest-6.1",
+	"getUrl"->"https://dev.azure.com/`organizationName`/_apis/distributedtask/agentclouds/`cloudId`?api-version=6.1-preview.1",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/_apis/distributedtask/agentclouds?api-version=6.1-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.project"],
+	"parentAzType" -> "devOps.project",
+	"listResultKeysFunc" -> Function[{res}, <| 
+		"organizationName" -> ref["organizationName"], 
+		"projectId" -> ref["projectId"],
+		"cloudName" -> res["name"],
+		"cloudId" -> res["id"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
+
+
+(* ::Subsubsection::Closed:: *)
+(*Cloud types*)
+
+
+azDevOpsAgentCloudTypes[auth_, azRefDevOpsPattern["devOps.organization"]] := 
+	azHttpGet[auth, {
+		"https://dev.azure.com/`organizationName`/_apis/distributedtask/agentcloudtypes?api-version=6.1-preview.1",
+		ref
+	}] /. ds_Dataset :> ds["value"]
+
+
+
+(* ::Subsubsection::Closed:: *)
+(*Deployment Groups*)
+
+
+<|
+	"azType"->"devOps.taskAgent.deploymentGroups",
+	"nameSingular"->"AgentDeploymentGroup",
+	"namePlural"->"AgentDeploymentGroups",
+	"panelIcon"-> icons["devOps.pipeline"],
+	"panelLabelFunc"-> Function[{refData},refData["groupName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/distributedtask/deploymentgroups?view=azure-devops-rest-6.1",
+	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/distributedtask/deploymentgroups/`groupId`?api-version=6.1-preview.1",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/distributedtask/deploymentgroups?api-version=6.1-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.project"],
+	"parentAzType" -> "devOps.project",
+	"listResultKeysFunc" -> Function[{res}, <| 
+		"organizationName" -> ref["organizationName"], 
+		"projectId" -> ref["projectId"],
+		"groupName" -> res["name"],
+		"groupId" -> res["id"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
+
+
+(* ::Subsubsection:: *)
+(*Queues*)
+
+
+<|
+	"azType"->"devOps.taskAgent.queues",
+	"nameSingular"->"AgentQueue",
+	"namePlural"->"AgentQueues",
+	"panelIcon"-> icons["devOps.pipeline"],
+	"panelLabelFunc"-> Function[{refData},refData["queueName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/distributedtask/queues?view=azure-devops-rest-6.1",
+	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/distributedtask/queues/`queueId`?api-version=6.1-preview.1",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/distributedtask/queues?api-version=6.1-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.project"],
+	"parentAzType" -> "devOps.project",
+	"listResultKeysFunc" -> Function[{res}, <| 
+		"organizationName" -> ref["organizationName"], 
+		"projectId" -> ref["projectId"],
+		"queueName" -> res["name"],
+		"queueId" -> res["id"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
+
+
+(* ::Subsubsection:: *)
+(*Virtual Machines*)
 
 
 (* ::Section::Closed:: *)

@@ -269,6 +269,19 @@ azDevOpsAgentQueues;
 azDevOpsAgentQueueList;
 azDevOpsAgentQueueSearch;
 
+(* Service endpoints/connections *)
+azDevOpsServiceEndpoints;
+azDevOpsServiceEndpointList;
+azDevOpsServiceEndpointSearch;
+azDevOpsServiceEndpointTypes;
+azDevOpsServiceEndpointExecutionHistory;
+
+(* Extensions *)
+azDevOpsInstalledExtensions;
+azDevOpsInstalledExtensionList;
+azDevOpsInstalledExtensionSearch;
+
+
 
 (* temp *)
 azMicrosoftIdToAzRef;
@@ -280,11 +293,11 @@ refType;
 Begin["`Private`"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Base*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Core*)
 
 
@@ -560,7 +573,7 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Azure*)
 
 
@@ -727,7 +740,7 @@ azMicrosoftIdToAzRef[msId_String]:=With[
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*DevOps*)
 
 
@@ -1217,11 +1230,11 @@ azAppGatewayAvailableWafRuleList[auth_, azRefAzurePattern["azure.subscription"]]
 	] /. ds_Dataset :> ds["value"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Monitor*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Log Query*)
 
 
@@ -1410,7 +1423,7 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*API manager*)
 
 
@@ -1588,7 +1601,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*API revision*)
 
 
@@ -1648,7 +1661,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Gateways*)
 
 
@@ -2119,7 +2132,7 @@ keyValueContainsQ[data_Association, key_String, pattern_] :=
 keyValueContainsQ[data_Association, key_String, pattern_] := False;	
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Organization*)
 
 
@@ -2161,7 +2174,7 @@ azInfo[auth_, ref:azRef[KeyValuePattern["azType"->"devOps.organization"]]] := re
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Git*)
 
 
@@ -2816,7 +2829,7 @@ azDownloadFile[_String, azRefDevOpsPattern["devOps.artifact.version"], path_Stri
 		"--path",path}] /. KeyValuePattern["ExitCode" -> 0] -> path
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Task Agent*)
 
 
@@ -2990,7 +3003,7 @@ azDevOpsAgentCloudTypes[auth_, azRefDevOpsPattern["devOps.organization"]] :=
 
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Deployment Groups*)
 
 
@@ -3015,7 +3028,7 @@ azDevOpsAgentCloudTypes[auth_, azRefDevOpsPattern["devOps.organization"]] :=
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Queues*)
 
 
@@ -3054,6 +3067,73 @@ AppendTo[relations, {"devOps.releaseDefinition"->"devOps.taskAgent.queue", {"azD
 
 (* ::Subsubsection:: *)
 (*Virtual Machines*)
+
+
+(* ::Subsection::Closed:: *)
+(*Service Endpoints*)
+
+
+ <|
+	"azType"->"devOps.serviceEndpoint",
+	"nameSingular"->"ServiceEndpoint",
+	"namePlural"->"ServiceEndpoints",
+	"panelIcon"-> icons["devOps.serviceEndpoint"],
+	"panelLabelFunc"-> Function[{refData},refData["endpointName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/serviceendpoint/endpoints?view=azure-devops-rest-6.0",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_settings/adminservices",
+	"getUrl"->"https://dev.azure.com/`organizationName`/`projectId`/_apis/serviceendpoint/endpoints/`endpointId`?api-version=6.0-preview.4",
+	"listUrl" -> "https://dev.azure.com/`organizationName`/`projectId`/_apis/serviceendpoint/endpoints?api-version=6.0-preview.4",
+	"listFilter" -> azRefDevOpsPattern["devOps.project"],
+	"parentAzType" -> "devOps.project",
+	"listResultKeysFunc" -> Function[{res}, <| 
+		"organizationName" -> ref["organizationName"], 
+		"projectId" -> ref["projectId"],
+		"endpointName" -> res["name"],
+		"endpointId" -> res["id"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
+
+
+azDevOpsServiceEndpointExecutionHistory[auth_, azRefDevOpsPattern["devOps.serviceEndpoint"]] := 
+	azHttpGet[auth, {
+		"https://dev.azure.com/`organizationName`/`projectId`/_apis/serviceendpoint/`endpointId`/executionhistory?api-version=6.0-preview.1",
+		ref
+	}] /. ds_Dataset :> ds["value"]
+
+
+azDevOpsServiceEndpointTypes[auth_, azRefDevOpsPattern["devOps.organization"]] := 
+	azHttpGet[auth, {
+		"https://dev.azure.com/`organizationName`/_apis/serviceendpoint/types?api-version=6.0-preview.1",
+		ref
+	}] /. ds_Dataset :> ds["value"]
+
+
+(* ::Subsection:: *)
+(*Extension Management*)
+
+
+ <|
+	"azType"->"devOps.extension",
+	"nameSingular"->"InstalledExtension",
+	"namePlural"->"InstalledExtensions",
+	"panelIcon"-> icons["devOps.extension"],
+	"panelLabelFunc"-> Function[{refData},refData["extensionName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/azure/devops/extensionmanagement/installed%20extensions?view=azure-devops-rest-6.0",
+	"uiUrl" -> "https://dev.azure.com/`organizationName`/_settings/extensions?tab=installed",
+	"getUrl"->"https://extmgmt.dev.azure.com/`organizationName`/_apis/extensionmanagement/installedextensionsbyname/`publisherId`/`extensionId`?api-version=6.0-preview.1",
+	"listUrl" -> "https://extmgmt.dev.azure.com/`organizationName`/_apis/extensionmanagement/installedextensions?api-version=6.0-preview.1",
+	"listFilter" -> azRefDevOpsPattern["devOps.organization"],
+	"parentAzType" -> "devOps.organization",
+	"listResultKeysFunc" -> Function[{res}, <| 
+		"organizationName" -> ref["organizationName"], 
+		"extensionName" -> res["extensionName"],
+		"extensionId" -> res["extensionId"],
+		"publisherName" ->res["publisherName"],
+		"publisherId" -> res["publisherId"]
+	|>],
+	"searchFields" -> {"name"}
+|> // devOpsDefaultOperationsBuilder
 
 
 (* ::Section::Closed:: *)

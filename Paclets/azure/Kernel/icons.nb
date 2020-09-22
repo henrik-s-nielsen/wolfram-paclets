@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       161,          7]
-NotebookDataLength[    254322,       4251]
-NotebookOptionsPosition[    253866,       4236]
-NotebookOutlinePosition[    254270,       4252]
-CellTagsIndexPosition[    254227,       4249]
+NotebookDataLength[    257998,       4321]
+NotebookOptionsPosition[    257542,       4306]
+NotebookOutlinePosition[    257946,       4322]
+CellTagsIndexPosition[    257903,       4319]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -2221,6 +2221,74 @@ UEEf3Ock7gXpCdVgwaQ1YNJNs7Vo/n9N/w9PuvBn
        DefaultBaseStyle->"ImageGraphics",
        ImageSizeRaw->{96., 96.},
        PlotRange->{{0, 96.}, {0, 96.}}]}], ",", "\[IndentingNewLine]", 
+     RowBox[{"\"\<devOps.serviceEndpoint\>\"", "->", 
+      GraphicsBox[
+       TagBox[RasterBox[CompressedData["
+1:eJztVvlPlFcUvcwAgoCyCSkVocoOIjOIG25YKwoKyGqsVsEZkKhIgJa427pv
+WI1GxAKNNlCFogIKOiS0sU00jdqkbdS2qTat2oq0pf/A6b1vBI0kZhhEf+El
+Z77MJN+c8+49d3krZ21qroaIih34IzW7NK6oKHtdmit/ySgozs8rMBrmFZQY
+84xFk3K0/KP/E9jS4Bk8r/fodVEWQxetp6gJEyly6kwKn51IoYnpFJzyLgWl
+LqOgtOX8fI+CkxdTaEIaRcyaS5GxM0gXE9MnjhdBuCPi5ig+31UfwWtLJdwO
+nMOwo21wKf+Snya472uA94Zy+BnXIThlCWudwe/q+sWrGz+exk2ZRmFzU2j0
+0gL4vF8G17JGOJ68Drtzv0HT+hg2pn+haemAXcOvcKq6Co/dZ/Bm4W4EZhoQ
+/vY8ipo42Wp+4Q6Zn0mjVm6E2/4GOJ66Afv6X6BtetDDTW1dsLls1mDb+Afs
+636C84mv4bntFPxy1ysNfY6DXs93j6GwOQvIL28D3+k0hpy+xTz/gExdzPnf
+CyH6HE/eUBoCsowQ3/TFD8IdGTudArJy4b63TnFrLvxpEbfA5tLfSoPzJ9/A
+p2gfxDeiobevozk/kyhyWhyFvzOf/ZtKIYkZytvC7VO8X+Xa0ns/D/v6n+HG
+vhyVvxnhsxN6+5q5Izg/gRk55Lt6G/v3GEZsrYbnjhq+dz17ux12Z+9Zxf1s
+Hry2VCGU7/W8t8Lik2j0skK8UXoIrgeb4FR5lT12Ew61P3LMbzP3XeUza7hV
+Hlo7YXv+d/Xf0iOkj+j1Zi+GLMgi/5wSrtsvmPM75Wvxr7b5AbSca83Fv57x
+uHX8xO+KBpdj7QhYlAvpI0oD80tOvDdVwKHme1U/1sbYEkg9jlmcD+kF4jnh
+dys7D5fjX8GW+8hAcj/lXwnxWze/3Fv8qWl5NKDcgqGffss1sAlh8cmqDkWH
+tum+yrOqrQHl78KQM3fgsetzVYcyp2RGic/EY6+CX3wtMXDfU4eRa7ZDas6e
+NfW3viyFzaVOSLwdan9QM9M8O008r64pbQPN3w3xmnhOvOdTcgCeO2tUbl4Z
+P8da+qnMyIAsA3xXbcXwwy0qFxKHfvebbpjMM1m8pcDzSCC9UOaJc8UVjJ0e
+xz0wk0SDx85aOFVfU9pehh+EU3OxQ81Mgbb5ocq/9HbP7Z+pPUbNgFjeL5IW
+kb/hA3hvLOcd46zyhTP3JWvg0g3ut8OOXObYtppxqAWuH1/AiA+r4W8o5d1o
+BXr2K9YQMSte7Y5SmzInAtOzrUJQ+nIznuykQQuX9iB44RLepTLM+ynP+8Ez
+eF7n+R8RRZ8m
+         "], {{0, 32.}, {32., 0}}, {0, 255},
+         ColorFunction->RGBColor,
+         ImageResolution->72],
+        BoxForm`ImageTag["Byte", ColorSpace -> "RGB", Interleaving -> False],
+        Selectable->False],
+       DefaultBaseStyle->"ImageGraphics",
+       ImageSizeRaw->{32., 32.},
+       PlotRange->{{0, 32.}, {0, 32.}}]}], ",", "\[IndentingNewLine]", 
+     RowBox[{"\"\<devOps.extension\>\"", "->", 
+      GraphicsBox[
+       TagBox[RasterBox[CompressedData["
+1:eJztnN9v0lAUxxv1wUf/BaO8qo8uk0SnTAorPwo8mLhECDhNFBZgkbEILlnI
+aBOTqdPoonv30cRnn3zxQV/9kWg0Rk00xhidv7n2tEBpaVlboHRwbvJdAmG9
+PR9uz73nnHvZnciwp7dRFJXbKfxh4xeOZLPx+cgu4UUsnTs7k04l6XQ+NZPK
+HkxsF96cqGsHpd1ce/fYLtp7nCqsXyRe71MSCn0h4fA3Egx+JkcnH5GlyhI5
+sH9fz/oy2uy0H+wr31kU7P5KYjGiq2Dwk8hjGDnAGJjwPhTsrHVk0FAk8puc
+WZvrmoWTOMA4cIfuGWYgs/hJ+OtcVyycxIG/wok2qe2MRv8Sv/+N6CcY5oMm
+J/Afs7MZyyycwsHjOUZ5vc9U9tUITb8gifgpsK+pcqkk+gb1Z8fiq1ueQ7lc
+Iiz7XWGbz/eKCP5CwaCVhdqPTk29Fa4RtsTCKRyK6yVh/P9TPAuVtYomg4bc
+gfsKDjCvzuVzW5pD6tacnk26Uv8PzB38NWv+Ejkgh35zAL8NdpgRy/7omgPM
+GSy7Ybpv8E394KD2X1ZkjYM1wXWQA3KwmwM8+zT9XFwXG5Vn8jFJJZMdOfAr
+nKlrgvz+14p1ip0cICaYnj7Z0Sa7BPMJzCvIATkgB+SAHJADchgMB/ehcYq/
+wRGP5wkJBD4245ZI5JcjOCwsFMl45K6Y25TjuQ2izm9a5WC0vjAoDsX5grhu
+NJr3tsIB6guHfQ8M92E3B36Va4vhe83Ban3BLg56ef9ec9DyMSDIqTLMe93Y
+BtjV88h9E3BmmHcadtbE2gbUBPTuD+I1oxygvuDzvWzrQ6u+MAiduJpriyPB
+f3GXq8RlYI4z2i4tluu+Vu6nU33BTgnfEVF/R+AjqvyyIQZmOGRuFxR+IRr9
+Q6o3lwfOAJQ+f04c+60cYG+AUQZmOIwlV1RjbvN8kV2C+4D7Ufs+5NA/Dvhc
+SA39pNRw3pSaC9dRTQ64rpbjLIi1zbIYtjirIafH3flcVvTh/Yy7WzXqeZjN
+NGp5OeSAHJADckAOyAE59J4D7guyrmHcJ4YcRpsD7iu2rmHcZ44ckEO3wnNJ
+kvCcmiQ8tygLz7FKwnPNsszWR4bxnHvruBj13z1Qjw2YTwf1Oxj/Af9KEgY=
+
+         "], {{0, 66.}, {66., 0}}, {0, 255},
+         ColorFunction->RGBColor,
+         ImageResolution->72],
+        BoxForm`ImageTag[
+        "Byte", ColorSpace -> "RGB", Interleaving -> False, Magnification -> 
+         Automatic],
+        Selectable->False],
+       DefaultBaseStyle->"ImageGraphics",
+       ImageSize->{44., Automatic},
+       ImageSizeRaw->{66., 66.},
+       PlotRange->{{0, 66.}, {0, 66.}}]}], ",", "\[IndentingNewLine]", 
      RowBox[{"\"\<azure.default\>\"", " ", "\[Rule]", " ", 
       GraphicsBox[
        TagBox[RasterBox[CompressedData["
@@ -4209,8 +4277,10 @@ xk/sre0/CD8pbdVx9sCiIwzOfer9ejbr88YB9pfZOfz/HRVxnKf5e+C98Dtb
    3.809166711058504*^9, 3.8091667339587455`*^9}, {3.8091674374375467`*^9, 
    3.809167439807803*^9}, {3.8091901980656548`*^9, 3.8091902209121485`*^9}, {
    3.809191688932536*^9, 3.809191710904954*^9}, {3.809226855834778*^9, 
-   3.809226883120792*^9}, {3.809325573240936*^9, 
-   3.8093255861256905`*^9}},ExpressionUUID->"1696c23d-434d-48e9-a353-\
+   3.809226883120792*^9}, {3.809325573240936*^9, 3.8093255861256905`*^9}, {
+   3.8096181684208064`*^9, 3.809618207202208*^9}, {3.809660223366228*^9, 
+   3.8096602390013957`*^9}, 
+   3.809685880471997*^9},ExpressionUUID->"1696c23d-434d-48e9-a353-\
 04305863c16e"],
 
 Cell[BoxData[
@@ -4251,8 +4321,8 @@ CellTagsIndex->{}
 *)
 (*NotebookFileOutline
 Notebook[{
-Cell[561, 20, 252656, 4193, 1200, "Input",ExpressionUUID->"1696c23d-434d-48e9-a353-04305863c16e"],
-Cell[253220, 4215, 642, 19, 28, "Input",ExpressionUUID->"97e1e835-5620-48fd-92b8-2df9e799f6a3"]
+Cell[561, 20, 256332, 4263, 1295, "Input",ExpressionUUID->"1696c23d-434d-48e9-a353-04305863c16e"],
+Cell[256896, 4285, 642, 19, 28, "Input",ExpressionUUID->"97e1e835-5620-48fd-92b8-2df9e799f6a3"]
 }
 ]
 *)

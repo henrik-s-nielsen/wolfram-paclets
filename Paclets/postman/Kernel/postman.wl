@@ -11,13 +11,13 @@ postmanTemplateSlots;
 Begin["`Private`"];
 
 
-importBody[KeyValuePattern["body"->KeyValuePattern["raw"->raw_String]]] := "body" -> strTemplate@raw;
+importBody[KeyValuePattern["body"->KeyValuePattern["raw"->raw_String]]] := "Body" -> strTemplate@raw;
 importBody[KeyValuePattern["body"->KeyValuePattern["urlencoded"->data_List]]] := With[
 	{dataList = 
 		(# /. KeyValuePattern[{"key" -> key_, "value" -> value_}] :> (key -> strTemplate@value)) & /@ data
 	},
-	"body" -> 
-		TemplateExpression2URLQueryEncode@dataList
+	"Body" -> 
+		TemplateExpression@StringReplace[URLQueryEncode@dataList, "%24"->"$"]
 ];
 importBody[_] := Nothing;
 
@@ -35,6 +35,11 @@ importAuth[auth_Association] := Module[
 	TemplateExpression[username<>":"<>password]]
 ];
 
+importHeaders[req_] :=
+	If[req["body","mode"]==="urlencoded",{"content-type"-> "application/x-www-form-urlencoded"},{}] ~Join~
+	If[KeyExistsQ[req,"auth"],{"Authorization"->importAuth[req["auth"]]},{}] ~Join~
+		(#key -> strTemplate@#value & /@( req["header"] /._Missing->{}))
+
 strTemplate[str_String] := StringTemplate@StringReplace[str,{"{{"->"`","}}"->"`"}] /; 
 	StringContainsQ[str,"{{"];
 strTemplate[str_String] := str;
@@ -42,8 +47,7 @@ strTemplate[str_String] := str;
 importRequest[req_Association] := TemplateObject[HTTPRequest[
 	strTemplate@req["url","raw"],<|
 		Method->req["method"],
-		"Headers"->If[KeyExistsQ[req,"auth"],{"Authorization"->importAuth[req["auth"]]},{}]~Join~
-		(#key -> strTemplate@#value & /@( req["header"] /._Missing->{})),
+		"Headers"-> importHeaders[req],
 		importBody[req]
 |>]];
 

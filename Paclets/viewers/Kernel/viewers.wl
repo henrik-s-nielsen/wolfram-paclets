@@ -28,6 +28,8 @@ view[XMLElement[tag_String|{ns_String,tag_String},attr_List,data_List]] :=
 			OpenerView[{"body",view@data}]
 		}]
 	}];
+	
+view[TemplateObject[t_]] := view@t;
 
 
 End[];

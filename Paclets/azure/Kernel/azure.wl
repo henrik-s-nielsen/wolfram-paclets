@@ -21,6 +21,7 @@ BeginPackage["azure`"];
 
 
 (* Base *)
+azConnections;
 azRefresh;
 azHttpGet;
 azHttpGetPaged;
@@ -130,6 +131,9 @@ azApiManagementApiOperationSearch;
 azApiManagementApiReleases;
 azApiManagementApiReleaseList;
 azApiManagementApiReleaseSearch;
+azApiManagementApiVersionSets;
+azApiManagementApiVersionSetList;
+azApiManagementApiVersionSetSearch;
 
 (* Event Hubs *)
 azEventHubs;
@@ -573,6 +577,18 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 ]
 
 
+azConnections[l:{azRef[KeyValuePattern["azType"->"azure.subscription"]]...}] := 
+	azConnections[<| #["subscriptionId"] -> azShellGetToken[#]["authorizationHeader"] & /@ l |>];
+azConnections[data_Association][prop_String] := data[prop];
+azConnections[data_Association][ref_azRef] := data[ref["subscriptionId"]];
+
+azConnections /: f_[cnns:azConnections[x_Association],refs_List,args___] :=
+	(f[cnns[#],#,args]& /@ refs) /. {
+		l:{_Dataset..} :> Dataset@Flatten@(Normal /@ l),
+		l_List :> Flatten@l 
+	}
+
+
 (* ::Subsection::Closed:: *)
 (*Azure*)
 
@@ -728,8 +744,10 @@ microsoftIdInfo[msType_] := <|
 |>
 
 azMsTypeFromId[msId_String] :=
-	StringCases[msId,"/providers/"~~type:((Except["/"]..)~~"/"~~(Except["/"]..)):>type,IgnoreCase->True] /.
-		{v_} :> v; 
+	StringCases[
+		msId, "/providers" ~~ types:(("/"~~(Except["/"]..))..) :> types, IgnoreCase->True] /.
+			{v_} :> StringSplit[v,"/"] /. 
+			{provider_,rest___} :> StringRiffle[{provider}~Join~{rest}[[;;;;2]],"/"] 
 
 azMicrosoftIdToAzRef[msId_String]:=With[
 	{idInf=microsoftIdInfo@azMsTypeFromId@msId},
@@ -1423,15 +1441,15 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*API manager*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Services*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Service*)
 
 
@@ -1449,6 +1467,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> res["name"]
 	|>],
@@ -1581,7 +1600,7 @@ cfg = <|
 	"nameSingular"-> "ApiManagementApi",
 	"namePlural"-> "ApiManagementApis",
 	"panelIcon"-> icons["azure.apiManagement"],
-	"panelLabelFunc"-> Function[{refData}, refData["apiDisplayName"]],
+	"panelLabelFunc"-> Function[{refData}, refData["apiDisplayName"]<>" [" <> refData["apiRevision"] <> "]" ],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apis",
 	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
 	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`?api-version=2019-12-01",
@@ -1593,7 +1612,8 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"apiName" -> res["name"],
-		"apiDisplayName" -> res["properties","displayName"]
+		"apiDisplayName" -> res["properties","displayName"],
+		"apiRevision" -> res["properties","apiRevision"] 
 		
 	|>],
 	"searchFields" -> {"name"}
@@ -1756,7 +1776,7 @@ azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Subsection::Closed:: *)
-(*API Operation*)
+(*API Operations*)
 
 
 cfg = <|
@@ -1785,7 +1805,7 @@ azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Subsection::Closed:: *)
-(*API Release*)
+(*API Releases*)
 
 
 cfg = <|
@@ -1809,6 +1829,55 @@ cfg = <|
 	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection::Closed:: *)
+(*API Version Sets*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.api.versionSet",
+	"nameSingular"-> "ApiManagementApiVersionSet",
+	"namePlural"-> "ApiManagementApiVersionSets",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData},  refData["versionSetDisplayName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apiversionset",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apiVersionSets/`versionSetName`?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apiVersionSets?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.service"],
+	"parentAzType" -> "azure.apiManagement.service",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"versionSetName" -> res["name"],
+		"versionSetDisplayName" -> res["properties","displayName"]
+	|>],
+	"searchFields" -> {"name"},
+	"microsoftType" -> "Microsoft.ApiManagement/service/apiVersionSets",
+	"microsoftIdTemplate" -> "/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apiVersionSets/`versionSetName`"
+|>;
+azureDefaultOperationsBuilder[cfg]
+
+
+azApiManagementApiVersionSetList[auth_, azRefAzurePattern["azure.apiManagement.api"]] := functionCatch["azApiManagementApiVersionSetList", Module[
+	{api},
+	api = azInfo[auth, ref]  // assertPattern[_Dataset];
+	If[
+		MatchQ[Normal@api, KeyValuePattern["properties"->KeyValuePattern["apiVersionSetId"->_String]]],
+		{Normal@azInfo[auth, azMicrosoftIdToAzRef@api["properties","apiVersionSetId"]]} // Dataset,
+		{}
+	]
+]];
+
+AppendTo[relations, {"azure.apiManagement.api"->"azure.apiManagement.api.versionSet", {"azApiManagementApiVersionSets","azApiManagementApiVersionSetList"}}];
+
+
+azApiManagementApiList[auth_, azRefAzurePattern["azure.apiManagement.api.versionSet"]] := 
+	azApiManagementApiList[auth, azParent[auth, ref] ][Select[azApiManagementApiVersionSetList[auth, #["azRef"]] =!= {} &]];
+	
+AppendTo[relations, {"azure.apiManagement.api.versionSet"->"azure.apiManagement.api", {"azApiManagementApis","azApiManagementApiList"}}];
 
 
 (* ::Section::Closed:: *)
@@ -2027,7 +2096,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Route tables*)
 
 
@@ -2058,7 +2127,7 @@ azureDefaultOperationsBuilder[cfg]
 (*Key Vault*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Vaults*)
 
 
@@ -2080,9 +2149,7 @@ cfg = <|
 		"vaultName" -> res["name"],
 		"vaultBaseUrl" -> res["properties","vaultUri"]
 	|>],
-	"searchFields" -> {"name"},
-	"microsoftType" -> "Microsoft.KeyVault/vaults",
-	"microsoftIdTemplate" -> "/subscriptions/subscriptionId/resourceGroups/resourceGroupName/providers/Microsoft.KeyVault/vaults/`vaultName`"
+	"searchFields" -> {"name"}
 |>;
 
 azureDefaultOperationsBuilder[cfg]
@@ -2098,7 +2165,7 @@ azKeyVaultKeyList[auth_, azRefAzurePattern["azure.keyVault"]] :=
 	] ;
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*DevOps*)
 
 
@@ -2174,7 +2241,7 @@ azInfo[auth_, ref:azRef[KeyValuePattern["azType"->"devOps.organization"]]] := re
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Git*)
 
 
@@ -2212,7 +2279,7 @@ azDevOpsGitClone[auth_, azRefDevOpsPattern["devOps.git.repository"], folder_Stri
 ];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Refs*)
 
 
@@ -3109,7 +3176,7 @@ azDevOpsServiceEndpointTypes[auth_, azRefDevOpsPattern["devOps.organization"]] :
 	}] /. ds_Dataset :> ds["value"]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Extension Management*)
 
 

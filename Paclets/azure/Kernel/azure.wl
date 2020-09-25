@@ -13,7 +13,7 @@
 (*- rename 	list to resource*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Header*)
 
 
@@ -297,11 +297,11 @@ refType;
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Core*)
 
 
@@ -586,7 +586,9 @@ azConnections /: f_[cnns:azConnections[x_Association],refs_List,args___] :=
 	(f[cnns[#],#,args]& /@ refs) /. {
 		l:{_Dataset..} :> Dataset@Flatten@(Normal /@ l),
 		l_List :> Flatten@l 
-	}
+	};
+azConnections /: f_[cnns:azConnections[x_Association],ref_azRef,args___] :=	
+	f[cnns,{ref},args]
 
 
 (* ::Subsection::Closed:: *)
@@ -1441,15 +1443,15 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*API manager*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Services*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Service*)
 
 

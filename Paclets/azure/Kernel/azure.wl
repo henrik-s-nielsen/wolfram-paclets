@@ -13,7 +13,7 @@
 (*- rename 	list to resource*)
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Header*)
 
 
@@ -47,6 +47,7 @@ azDownloadByteArray;
 azFileNames;
 azParent;
 yamlImport;
+unGroupBy;
 
 (* UI portal setup *)
 azSetUiPortalPrefix;
@@ -583,12 +584,23 @@ azConnections[data_Association][prop_String] := data[prop];
 azConnections[data_Association][ref_azRef] := data[ref["subscriptionId"]];
 
 azConnections /: f_[cnns:azConnections[x_Association],refs_List,args___] :=
-	(f[cnns[#],#,args]& /@ refs) /. {
-		l:{_Dataset..} :> Dataset@Flatten@(Normal /@ l),
-		l_List :> Flatten@l 
-	};
+	{# -> f[cnns[#],#,args]& /@ refs }  /. ds_Dataset :> Normal[ds] /. n_ :> Dataset@Association@Flatten@n  ; 
+	
 azConnections /: f_[cnns:azConnections[x_Association],ref_azRef,args___] :=	
 	f[cnns,{ref},args]
+
+
+unGroupBy[ds_Dataset, key_] := unGroupBy[Normal@ds, key] // Dataset;
+unGroupBy[asc_Association, key_] := Module[{ast, res},
+  res = asc /.
+     Association ->
+      ast /.
+    (kv_ ->
+       l : {_ast ...}) :> (# /. row_ast :> Prepend[row, key -> kv] & /@
+        l);
+  (res // Replace[#, ast -> List, {1}, Heads -> True] & //
+     Flatten) /. ast -> Association
+]
 
 
 (* ::Subsection::Closed:: *)
@@ -1059,6 +1071,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"clusterName" -> res["name"]
 	|>],
@@ -1230,6 +1243,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"gatewayName" -> res["name"]
 	|>],
@@ -1497,6 +1511,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.service",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"policyName" -> res["name"]
@@ -1524,6 +1539,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.service",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"loggerName" -> res["name"]
@@ -1551,6 +1567,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.service",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"subscriptionName" -> res["name"]
@@ -1581,6 +1598,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.service",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"productName" -> res["name"]
@@ -1611,6 +1629,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.service",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"apiName" -> res["name"],
@@ -1672,6 +1691,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.api",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"apiName" -> getIdKeyValue[res["id"],"apis/"],
@@ -1701,6 +1721,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.service",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"gatewayName" -> res["name"]
@@ -1739,6 +1760,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.gateway",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"gatewayName" -> getIdKeyValue[res["id"],"gateways/"],
@@ -1767,6 +1789,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.service",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"diagnosticName" -> res["name"]
@@ -1795,6 +1818,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.api",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"apiName" -> getIdKeyValue[res["id"],"apis/"],
@@ -1824,6 +1848,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.api",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"releaseId" -> res["name"]
@@ -1851,6 +1876,7 @@ cfg = <|
 	"parentAzType" -> "azure.apiManagement.service",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"versionSetName" -> res["name"],
@@ -1904,6 +1930,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"namespace" -> res["name"]
 	|>],
@@ -1916,7 +1943,7 @@ azureDefaultOperationsBuilder[cfg];
 (*Application Insights*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Components*)
 
 
@@ -1934,6 +1961,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"componentName" -> res["name"],
 		"appId" -> Association[res["properties"]]["AppId"]
@@ -1970,6 +1998,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"networkName" -> res["name"]
 	|>],
@@ -1997,6 +2026,7 @@ cfg = <|
 	"parentAzType" -> "azure.virtualNetworks.network",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"networkName" -> getIdKeyValue[res["id"],"virtualNetworks/"],
 		"subnetName" -> res["name"]
@@ -2025,6 +2055,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"interfaceName" -> res["name"]
 	|>],
@@ -2062,6 +2093,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"addressName" -> res["name"]
 	|>],
@@ -2089,6 +2121,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"securityGroupName" -> res["name"]
 	|>],
@@ -2116,6 +2149,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"routeTableName" -> res["name"]
 	|>],
@@ -2129,7 +2163,7 @@ azureDefaultOperationsBuilder[cfg]
 (*Key Vault*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Vaults*)
 
 
@@ -2147,6 +2181,7 @@ cfg = <|
 	"parentAzType" -> "azure.subscription",
 	"listResultKeysFunc" -> Function[{res}, <|
 		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"vaultName" -> res["name"],
 		"vaultBaseUrl" -> res["properties","vaultUri"]

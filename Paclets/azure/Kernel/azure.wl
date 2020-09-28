@@ -47,7 +47,6 @@ azDownloadByteArray;
 azFileNames;
 azParent;
 yamlImport;
-unGroupBy;
 
 (* UI portal setup *)
 azSetUiPortalPrefix;
@@ -298,11 +297,11 @@ refType;
 Begin["`Private`"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Base*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Core*)
 
 
@@ -583,24 +582,14 @@ azConnections[l:{azRef[KeyValuePattern["azType"->"azure.subscription"]]...}] :=
 azConnections[data_Association][prop_String] := data[prop];
 azConnections[data_Association][ref_azRef] := data[ref["subscriptionId"]];
 
-azConnections /: f_[cnns:azConnections[x_Association],refs_List,args___] :=
-	{# -> f[cnns[#],#,args]& /@ refs }  /. ds_Dataset :> Normal[ds] /. n_ :> Dataset@Association@Flatten@n  ; 
-	
+forceList[v_] := {v} /; !ListQ@Normal@v;
+forceList[v_] := v;
+
+azConnections /: f_[cnns:azConnections[x_Association],refs_List,args___] := 
+	Dataset@Association[(# -> f[cnns[#],#,args] & /@ refs) /. ds_Dataset :> Normal@ds]
+ 
 azConnections /: f_[cnns:azConnections[x_Association],ref_azRef,args___] :=	
 	f[cnns,{ref},args]
-
-
-unGroupBy[ds_Dataset, key_] := unGroupBy[Normal@ds, key] // Dataset;
-unGroupBy[asc_Association, key_] := Module[{ast, res},
-  res = asc /.
-     Association ->
-      ast /.
-    (kv_ ->
-       l : {_ast ...}) :> (# /. row_ast :> Prepend[row, key -> kv] & /@
-        l);
-  (res // Replace[#, ast -> List, {1}, Heads -> True] & //
-     Flatten) /. ast -> Association
-]
 
 
 (* ::Subsection::Closed:: *)
@@ -1908,11 +1897,11 @@ azApiManagementApiList[auth_, azRefAzurePattern["azure.apiManagement.api.version
 AppendTo[relations, {"azure.apiManagement.api.versionSet"->"azure.apiManagement.api", {"azApiManagementApis","azApiManagementApiList"}}];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Event Hubs*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Namespaces*)
 
 
@@ -1924,7 +1913,7 @@ cfg = <|
 	"panelLabelFunc"-> Function[{refData}, refData["namespace"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/eventhub/event-hubs-runtime-rest",
 	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.EventHub/namespaces",
-	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionName`/resourceGroups/`resourceGroupName`/providers/Microsoft.EventHub/namespaces/`namespace`?api-version=2018-01-01-preview",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.EventHub/namespaces/`namespace`?api-version=2018-01-01-preview",
 	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/providers/Microsoft.EventHub/namespaces?api-version=2018-01-01-preview",
 	"listFilter" -> azRefAzurePattern["azure.subscription"],
 	"parentAzType" -> "azure.subscription",

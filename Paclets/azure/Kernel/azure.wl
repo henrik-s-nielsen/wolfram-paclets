@@ -177,6 +177,7 @@ azKeyVaults;
 azKeyVaultList;
 azKeyVaultSearch;
 azKeyVaultKeyList;
+azKeyVaultSecretList;
 
 (* Azure DevOps - project *)
 azDevOpsProjects;
@@ -393,8 +394,13 @@ azParseRestResponde[res_] :=
 		Dataset@ImportByteArray[r["BodyByteArray"],"RawJSON"]
 
 
-azShellGetToken[azRef[KeyValuePattern["subscriptionId" -> id_String]]] := azShellGetToken[id];
-azShellGetToken[subscriptionId_String] := RunProcess[{$azExe, "account", "get-access-token"}] /.
+(* https://docs.microsoft.com/en-us/previous-versions/azure/dn645543(v=azure.100)?redirectedfrom=MSDN *)
+azShellGetToken[azRef[KeyValuePattern["subscriptionId" -> id_String]], args___] := azShellGetToken[id, args];
+azShellGetToken[subscriptionId_String] :=
+	azShellGetToken@{"account","get-access-token","--subscription", subscriptionId};
+azShellGetToken[subscriptionId_String, resource_String] :=
+	azShellGetToken@{"account","get-access-token","--subscription", subscriptionId, "--resource", resource};
+azShellGetToken[{args___}] := RunProcess[{$azExe, args}] /.
 	KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_,"--subscription" ->subscriptionId }] :> 
 		ImportString[std,"RawJSON"] /. KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_}] :> 
 			With[
@@ -854,6 +860,7 @@ Symbol["azDevOps"<>TemplateSlot["nameSingular"]<>"Search"][auth_String, Template
 		query
 	]]
 ]][cfg] // ReleaseHold
+
 
 devOpsCreateBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
@@ -1897,11 +1904,11 @@ azApiManagementApiList[auth_, azRefAzurePattern["azure.apiManagement.api.version
 AppendTo[relations, {"azure.apiManagement.api.versionSet"->"azure.apiManagement.api", {"azApiManagementApis","azApiManagementApiList"}}];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Event Hubs*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Namespaces*)
 
 
@@ -2191,7 +2198,17 @@ azKeyVaultKeyList[auth_, azRefAzurePattern["azure.keyVault"]] :=
 	] ;
 
 
-(* ::Section::Closed:: *)
+(* ::Subsection::Closed:: *)
+(*Secrets*)
+
+
+azKeyVaultSecretList[auth_, azRefAzurePattern["azure.keyVault"]] := 
+	azHttpGet[auth,
+		ref["vaultBaseUrl"] <> "/secrets?api-version=7.1"
+	] ;
+
+
+(* ::Section:: *)
 (*DevOps*)
 
 
@@ -2267,7 +2284,7 @@ azInfo[auth_, ref:azRef[KeyValuePattern["azType"->"devOps.organization"]]] := re
 
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Git*)
 
 
@@ -2493,7 +2510,7 @@ azDownloadByteArray[auth_, azRefDevOpsPattern["devOps.git.file"]] :=
 	];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Build*)
 
 
@@ -2648,11 +2665,11 @@ azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
 	azFileNames[auth, ref["downloadUrl"]];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Release*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Release definition*)
 
 
@@ -2922,7 +2939,7 @@ azDownloadFile[_String, azRefDevOpsPattern["devOps.artifact.version"], path_Stri
 		"--path",path}] /. KeyValuePattern["ExitCode" -> 0] -> path
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Task Agent*)
 
 
@@ -3032,7 +3049,7 @@ azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Variable Groups*)
 
 
@@ -3057,6 +3074,17 @@ azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
 	"searchFields" -> {"name"}
 |> // devOpsDefaultOperationsBuilder
 
+
+
+azDevOpsAgentVariableGroupList[auth_, azRefDevOpsPattern["devOps.releaseDefinition"]] := functionCatch["azDevOpsAgentVariableGroupList", Module[
+	{variableGroupIds, project, variableGroups},
+	project = azParent[auth, ref] // assertPattern[_azRef];
+	variableGroupIds = azInfo[auth, ref]["variableGroups"] // Normal // assertPattern[_List];
+	variableGroups = azDevOpsAgentVariableGroupList[auth, project] // assertPattern[_Dataset];
+	variableGroups[Select[MemberQ[variableGroupIds,#["id"]]&]]
+]];
+
+AppendTo[relations, {"devOps.releaseDefinition"->"devOps.taskAgent.variableGroup", {"azDevOpsAgentVariableGroups","azDevOpsAgentVariableGroupList"}}];
 
 
 (* ::Subsubsection::Closed:: *)
@@ -3096,7 +3124,7 @@ azDevOpsAgentCloudTypes[auth_, azRefDevOpsPattern["devOps.organization"]] :=
 
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Deployment Groups*)
 
 

@@ -298,7 +298,7 @@ refType;
 Begin["`Private`"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Base*)
 
 
@@ -949,7 +949,7 @@ devOpsDefaultOperationsBuilder[cfg_Association] := Module[
 ];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*azRef panel*)
 
 
@@ -959,7 +959,7 @@ devOpsDefaultOperationsBuilder[cfg_Association] := Module[
 
 (* Notebook define azIcons variable *)
 NotebookImport[DirectoryName@FindFile@"azure`"<>"icons.nb","Input"->"Expression"];
-icons =  Image[#,ImageSize->15]& /@ azIcons;
+icons =  Image[ImageResize[#,15],ImageSize -> 15]& /@ azIcons;
 panelInfo[_] := <|
 	"icon"->icons["azure.default"],
 	"labelFunc"->("-"&)

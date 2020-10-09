@@ -13,7 +13,7 @@
 (*- rename 	list to resource*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Header*)
 
 
@@ -57,6 +57,14 @@ $azExe;
 azShellLogin;
 azShellGetSubscriptions;
 azShellGetSubscriptionList;
+
+(* ARM Templates *)
+azArmTemplate;
+
+(* Resource groups *)
+azResourceGroups;
+azResourceGroupList;
+azResourceGroupSearch;
 
 (* Resources *)
 azResources;
@@ -302,7 +310,7 @@ Begin["`Private`"];
 (*Base*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Core*)
 
 
@@ -365,6 +373,20 @@ azRelations[]:=relations;
 
 azRef/:Normal[azRef[a_Association]] := a;
 azRef[a_Association][property_String] := a[property];
+azRef[a_Association]["subscriptionRef"] := azRef[<|
+	"azType" -> "azure.subscription",
+	If[KeyExistsQ[a,"subscriptionName"],"subscriptionName" -> a["subscriptionName"], Nothing],
+	"subscriptionId" -> a["subscriptionId"]
+|>];
+azRef[a_Association]["resourceGroupRef"] := azRef[<|
+	"azType" -> "azure.resourceGroup",
+	If[KeyExistsQ[a,"subscriptionName"],"subscriptionName" -> a["subscriptionName"], Nothing],
+	"subscriptionId" -> a["subscriptionId"],
+	"resourceGroupName" -> a["resourceGroupName"]
+|>];
+
+
+azRef /: MissingQ[azRef[data_]] := MissingQ@data["azType"];
 
 azParent[auth_, base_azRef, parentType_String] := Module[{dirtyParent, cleanParent},
 	dirtyParent = Normal@base;
@@ -390,7 +412,7 @@ azShellLogin[] := RunProcess[{$azExe,"login"}] /. KeyValuePattern["ExitCode"->0]
 $azExe = "C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd";
 
 azParseRestResponde[res_] := 
-	res /. r:HTTPResponse[_,KeyValuePattern[{"StatusCode"->(200|202)}],___] :> 
+	res /. r:HTTPResponse[_,KeyValuePattern[{"StatusCode"->(200)}],___] :> 
 		Dataset@ImportByteArray[r["BodyByteArray"],"RawJSON"]
 
 
@@ -447,13 +469,15 @@ azHttpDelete[authorizationHeader_String,  url_String] := Module[
 azHttpPost[auth_, ref_] := azHttpPost[auth,ref, <||>];
 azHttpPost[auth_,{urlTemplate_String,azRef[refData_Association]}, args___]:=
 	azHttpPost[auth,StringTemplate[urlTemplate][URLEncode/@ refData],args];
-azHttpPost[authorizationHeader_String,  url_String, data_Association] := Module[
+azHttpPost[authorizationHeader_String,  url_String, data_Association] :=	
+	azHttpPost[authorizationHeader,  url, ExportString[data,"RawJSON"]];
+azHttpPost[authorizationHeader_String,  url_String, body_String] := Module[
 	{req, res},
 	req = HTTPRequest[url, <|
 		Method -> "POST",
 		"ContentType" -> "application/json",
 		"Headers" -> {"Authorization" -> authorizationHeader},
-		"Body" -> ExportString[data,"RawJSON"]
+		"Body" -> body
 	|>];
 	Sow[req];
 	res = URLRead[req, Interactive -> False];
@@ -587,9 +611,6 @@ azConnections[l:{azRef[KeyValuePattern["azType"->"azure.subscription"]]...}] :=
 	azConnections[<| #["subscriptionId"] -> azShellGetToken[#]["authorizationHeader"] & /@ l |>];
 azConnections[data_Association][prop_String] := data[prop];
 azConnections[data_Association][ref_azRef] := data[ref["subscriptionId"]];
-
-forceList[v_] := {v} /; !ListQ@Normal@v;
-forceList[v_] := v;
 
 azConnections /: f_[cnns:azConnections[x_Association],refs_List,args___] := 
 	Dataset@Association[(# -> f[cnns[#],#,args] & /@ refs) /. ds_Dataset :> Normal@ds]
@@ -949,7 +970,7 @@ devOpsDefaultOperationsBuilder[cfg_Association] := Module[
 ];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*azRef panel*)
 
 
@@ -1034,6 +1055,57 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 
 
 
+(* ::Section:: *)
+(*Resource management*)
+
+
+(* ::Subsection::Closed:: *)
+(*Resource groups*)
+
+
+cfg = <|
+	"azType"->"azure.resourceGroup",
+	"nameSingular"->"ResourceGroup",
+	"namePlural"->"ResourceGroups",
+	"panelIcon"-> icons["azure.resourceGroup"],
+	"panelLabelFunc"-> Function[{refData}, refData["resourceGroupName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/resources/resourcegroups",
+	"uiUrl" -> "/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/overview",
+	"getUrl"-> "https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`?api-version=2020-06-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups?api-version=2020-06-01",
+	"listFilter" -> azRefAzurePattern["azure.subscription"],
+	"parentAzType" -> "azure.subscription",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsection:: *)
+(*Export Templates*)
+
+
+azArmTemplate[auth_, azRefAzurePattern["azure.resourceGroup"]] := azArmTemplate[auth, ref, "*"] 
+azArmTemplate[auth_, azRefAzurePattern["azure.resourceGroup"], resourcePattern_String] := Module[{body},
+	data = <|
+		"resources"->{resourcePattern},
+		"options"->"IncludeParameterDefaultValue,IncludeComments"
+	|>;
+	azHttpPost[auth, {
+			"https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/exportTemplate?api-version=2020-06-01",
+			ref
+		}, ExportString[data,"RawJSON"]
+	]
+];
+azArmTemplate[auth_, ref_] := 
+	(azInfo[auth, ref]["id"]) /. id_String :> azArmTemplate[auth, ref["resourceGroupRef"], id]
+
+
 (* ::Section::Closed:: *)
 (*Resources*)
 
@@ -1046,7 +1118,15 @@ azResourceList[auth_, azRefAzurePattern["azure.subscription"]] :=
 			"https://management.azure.com/subscriptions/`subscriptionId`/resources?api-version=2020-06-01",
 			ref
 		}
-	] /. ds_Dataset :> ds["value",All, <| "azRef" -> azMicrosoftIdToAzRef[#id], # |>&];
+	] /. ds_Dataset :> ds["value", All, <| "azRef" -> azMicrosoftIdToAzRef[#id], # |>&]
+	
+azResourceList[auth_, azRefAzurePattern["azure.resourceGroup"]] := 
+	azHttpGet[
+		auth, {
+			"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/resources?api-version=2020-06-01",
+			ref
+		}
+	] /. ds_Dataset :> ds["value",All, <| "azRef" ->  azMicrosoftIdToAzRef[#id], # |>&];
 
 
 (* ::Section::Closed:: *)
@@ -1074,7 +1154,6 @@ cfg = <|
 	"searchFields" -> {"name"},
 	"microsoftType" -> "Microsoft.ContainerService/managedClusters",
 	"microsoftIdTemplate" -> "/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.ContainerService/managedClusters/`clusterName`"
-
 |>;
 
 azureDefaultOperationsBuilder[cfg]
@@ -1129,7 +1208,9 @@ cfg = <|
 		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
 		"workspaceName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"microsoftType" -> "Microsoft.OperationalInsights/workspaces",
+	"microsoftIdTemplate" -> "/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.OperationalInsights/workspaces/`workspaceName`"
 |>;
 
 azureDefaultOperationsBuilder[cfg]
@@ -1457,7 +1538,7 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 (*API manager*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Services*)
 
 
@@ -1854,7 +1935,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*API Version Sets*)
 
 
@@ -2208,7 +2289,7 @@ azKeyVaultSecretList[auth_, azRefAzurePattern["azure.keyVault"]] :=
 	] ;
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*DevOps*)
 
 

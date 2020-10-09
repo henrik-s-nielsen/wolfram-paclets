@@ -10,17 +10,17 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       161,          7]
-NotebookDataLength[     90705,       1521]
-NotebookOptionsPosition[     90254,       1506]
-NotebookOutlinePosition[     90657,       1522]
-CellTagsIndexPosition[     90614,       1519]
+NotebookDataLength[     90735,       1522]
+NotebookOptionsPosition[     90284,       1507]
+NotebookOutlinePosition[     90687,       1523]
+CellTagsIndexPosition[     90644,       1520]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
 Notebook[{
 Cell[BoxData[
  RowBox[{
-  RowBox[{"azIcons", "=", 
+  RowBox[{"cfIcons", "=", 
    RowBox[{"<|", "\[IndentingNewLine]", 
     RowBox[{
      RowBox[{"\"\<confluence.content.page\>\"", "\[Rule]", 
@@ -1494,9 +1494,10 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHn4Px7jL0g=
    3.8096181684208064`*^9, 3.809618207202208*^9}, {3.809660223366228*^9, 
    3.8096602390013957`*^9}, 3.809685880471997*^9, {3.8105695581637588`*^9, 
    3.8105697028535624`*^9}, {3.8105697374356794`*^9, 
-   3.8105697739678097`*^9}, {3.810570011345648*^9, 3.8105700908355694`*^9}},
- CellLabel->
-  "In[369]:=",ExpressionUUID->"1696c23d-434d-48e9-a353-04305863c16e"],
+   3.8105697739678097`*^9}, {3.810570011345648*^9, 3.8105700908355694`*^9}, {
+   3.810656671570323*^9, 
+   3.8106566737881765`*^9}},ExpressionUUID->"1696c23d-434d-48e9-a353-\
+04305863c16e"],
 
 Cell[BoxData[""], "Input",
  CellChangeTimes->{{3.809166677939828*^9, 3.809166694954605*^9}, {
@@ -1521,8 +1522,8 @@ CellTagsIndex->{}
 *)
 (*NotebookFileOutline
 Notebook[{
-Cell[561, 20, 89455, 1478, 575, "Input",ExpressionUUID->"1696c23d-434d-48e9-a353-04305863c16e"],
-Cell[90019, 1500, 231, 4, 28, "Input",ExpressionUUID->"97e1e835-5620-48fd-92b8-2df9e799f6a3"]
+Cell[561, 20, 89485, 1479, 575, "Input",ExpressionUUID->"1696c23d-434d-48e9-a353-04305863c16e"],
+Cell[90049, 1501, 231, 4, 28, "Input",ExpressionUUID->"97e1e835-5620-48fd-92b8-2df9e799f6a3"]
 }
 ]
 *)

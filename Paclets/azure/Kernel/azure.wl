@@ -608,18 +608,23 @@ GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphL
 
 
 azConnections[l:{azRef[KeyValuePattern["azType"->"azure.subscription"]]...}] := 
-	azConnections[<| #["subscriptionId"] -> azShellGetToken[#]["authorizationHeader"] & /@ l |>];
-azConnections[data_Association][prop_String] := data[prop];
-azConnections[data_Association][ref_azRef] := data[ref["subscriptionId"]];
-
-azConnections /: f_[cnns:azConnections[x_Association],refs_List,args___] := 
-	Dataset@Association[(# -> f[cnns[#],#,args] & /@ refs) /. ds_Dataset :> Normal@ds]
+	azConnections[<| #["subscriptionId"] -> <| "subscriptionName" -> #["subscriptionName"], azShellGetToken[#] |> & /@ l |>];
+azConnections[data_Association][subscriptionId_String] :=
+	data[subscriptionId,"authorizationHeader"];
+azConnections[data_Association][ref_azRef] := 
+	data[ref["subscriptionId"]];
+azConnections[data_Association]["Names"] := 
+	Dataset[data][All,"subscriptionName"] // Values // Normal;
+azConnections[data_Association][{subName_String}] := 
+	(Dataset[data][Select[#["subscriptionName"]== subName &],"authorizationHeader"] // Values // Normal )/. {v_} :> v;
+azConnections /: f_[cnns:azConnections[_Association],refs_List,args___] := 
+	Dataset@Association[(# -> f[cnns[#["subscriptionId"]],#,args] & /@ refs) /. ds_Dataset :> Normal@ds]
  
-azConnections /: f_[cnns:azConnections[x_Association],ref_azRef,args___] :=	
+azConnections /: f_[cnns:azConnections[_Association],ref_azRef,args___] :=	
 	f[cnns,{ref},args]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Azure*)
 
 

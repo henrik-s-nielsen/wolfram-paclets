@@ -11,9 +11,10 @@
 (* ::Text:: *)
 (*To do:*)
 (*- rename 	list to resource*)
+(*- https://stackoverflow.com/questions/58598532/what-is-api-equivalent-of-az-account-list*)
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Header*)
 
 
@@ -58,17 +59,25 @@ azShellLogin;
 azShellGetSubscriptions;
 azShellGetSubscriptionList;
 
+(* Geo locations*)
+azGeoLocationList;
+azGeoLocations;
+
 (* ARM Templates *)
 azArmTemplate;
 
-(* Resource groups *)
+(* Resource Management *)
 azResourceGroups;
 azResourceGroupList;
 azResourceGroupSearch;
-
-(* Resources *)
 azResources;
 azResourceList;
+azResourceGroupDeployments;
+azResourceGroupDeploymentList;
+azResourceGroupDeploymentSearch;
+azResourceGroupDeploymentValidate;
+azResourceGroupDeploymentWhatIf;
+azResourceGroupDeploymentCreate;
 
 (* Auzure kubernetes service *)
 azAksClusters;
@@ -412,7 +421,7 @@ azShellLogin[] := RunProcess[{$azExe,"login"}] /. KeyValuePattern["ExitCode"->0]
 $azExe = "C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd";
 
 azParseRestResponde[res_] := 
-	res /. r:HTTPResponse[_,KeyValuePattern[{"StatusCode"->(200)}],___] :> 
+	res /. r:HTTPResponse[_,KeyValuePattern[{"StatusCode"->(200|201)}],___] :> 
 		Dataset@ImportByteArray[r["BodyByteArray"],"RawJSON"]
 
 
@@ -468,7 +477,9 @@ azHttpDelete[authorizationHeader_String,  url_String] := Module[
 
 azHttpPost[auth_, ref_] := azHttpPost[auth,ref, <||>];
 azHttpPost[auth_,{urlTemplate_String,azRef[refData_Association]}, args___]:=
-	azHttpPost[auth,StringTemplate[urlTemplate][URLEncode/@ refData],args];
+	azHttpPost[auth,{urlTemplate,URLEncode/@ refData},args];
+azHttpPost[auth_,{urlTemplate_String, data_Association}, args___]:=
+	azHttpPost[auth,StringTemplate[urlTemplate][URLEncode/@ data],args];	
 azHttpPost[authorizationHeader_String,  url_String, data_Association] :=	
 	azHttpPost[authorizationHeader,  url, ExportString[data,"RawJSON"]];
 azHttpPost[authorizationHeader_String,  url_String, body_String] := Module[
@@ -485,13 +496,20 @@ azHttpPost[authorizationHeader_String,  url_String, body_String] := Module[
 	azParseRestResponde@res
 ]
 
-azHttpPut[authorizationHeader_String,  url_String, data_Association] := Module[
+azHttpPut[auth_, ref_] := azHttpPut[auth,ref, <||>];
+azHttpPut[auth_,{urlTemplate_String,azRef[refData_Association]}, args___]:=
+	azHttpPut[auth,{urlTemplate,URLEncode/@ refData},args];
+azHttpPut[auth_,{urlTemplate_String, data_Association}, args___]:=
+	azHttpPut[auth,StringTemplate[urlTemplate][URLEncode/@ data],args];	
+azHttpPut[authorizationHeader_String,  url_String, data_Association] :=	
+	azHttpPut[authorizationHeader,  url, ExportString[data,"RawJSON"]];
+azHttpPut[authorizationHeader_String,  url_String, body_String] := Module[
 	{req, res},
 	req = HTTPRequest[url, <|
 		Method -> "PUT",
 		"ContentType" -> "application/json",
 		"Headers" -> {"Authorization" -> authorizationHeader},
-		"Body" -> ExportString[data,"RawJSON"]
+		"Body" -> body
 	|>];
 	Sow[req];
 	res = URLRead[req, Interactive -> False];
@@ -563,14 +581,27 @@ keyValuesFromId[id_String, idTemplate_String] :=
 refValues[ref:azRef[refData_Association]] := 
 	Append[URLEncode /@ refData, "id" -> azRefToId[ref]];
 		
-pageData[auth_String, r_HTTPResponse] := r;
-pageData[auth_String, ds_Dataset] := pageData[auth, Normal@ds];
-pageData[auth_String,data_Association] := (
+pageData[auth_, r_HTTPResponse] := r;
+pageData[auth_, ds_Dataset] := pageData[auth, Normal@ds];
+pageData[auth_,data_Association] := (
 	PrintTemporary[StringTemplate["Paging: ``"][Length@data["value"]]];
 	data["value"] ~ Join ~ pageData[auth, azHttpGet[auth,data["nextLink"]]]) /;
 				KeyExistsQ[data,"nextLink"];
 pageData[auth_String,data_Association]:=data["value"] /;
 				!KeyExistsQ[data,"nextLink"];
+								
+resolveHttpStatusCode202[auth_, response_HTTPResponse] := Module[
+	{res=response, loc},
+	While[
+		MatchQ[res,_HTTPResponse] && res["StatusCode"] == 202,
+		loc = Association[res["Headers"]]["location"];
+		res = azHttpGet[auth, loc];
+		PrintTemporary["Waiting for response 202 to be resolved..."];
+		Pause[2];
+	];
+	res
+];
+resolveHttpStatusCode202[_, v_] := v;
 
 
 azRefAzurePattern[azType_String] := azRefAzurePattern[azType, <||>];
@@ -624,7 +655,7 @@ azConnections /: f_[cnns:azConnections[_Association],ref_azRef,args___] :=
 	f[cnns,{ref},args]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Azure*)
 
 
@@ -793,7 +824,7 @@ azMicrosoftIdToAzRef[msId_String]:=With[
 ]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*DevOps*)
 
 
@@ -1027,8 +1058,12 @@ Block[{type, typeLabel, bg, display, panelInf},
 
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Subscriptions*)
+
+
+(* ::Subsection::Closed:: *)
+(*Subscription*)
 
 
 cfg = <|
@@ -1064,7 +1099,7 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 (*Resource management*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Resource groups*)
 
 
@@ -1105,13 +1140,13 @@ azArmTemplate[auth_, azRefAzurePattern["azure.resourceGroup"], resourcePattern_S
 			"https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/exportTemplate?api-version=2020-06-01",
 			ref
 		}, ExportString[data,"RawJSON"]
-	]
+	] // resolveHttpStatusCode202[auth, #]&
 ];
 azArmTemplate[auth_, ref_] := 
 	(azInfo[auth, ref]["id"]) /. id_String :> azArmTemplate[auth, ref["resourceGroupRef"], id]
 
 
-(* ::Section::Closed:: *)
+(* ::Subsection::Closed:: *)
 (*Resources*)
 
 
@@ -1132,6 +1167,129 @@ azResourceList[auth_, azRefAzurePattern["azure.resourceGroup"]] :=
 			ref
 		}
 	] /. ds_Dataset :> ds["value",All, <| "azRef" ->  azMicrosoftIdToAzRef[#id], # |>&];
+
+
+(* ::Subsection:: *)
+(*Resource group deployments*)
+
+
+(* ::Subsubsection:: *)
+(*Deployment*)
+
+
+cfg = <|
+	"azType"->"azure.resourceGroupDeployment",
+	"nameSingular"->"ResourceGroupDeployment",
+	"namePlural"->"ResourceGroupDeployments",
+	"panelIcon"-> icons["azure.resource.deployment"],
+	"panelLabelFunc"-> Function[{refData}, refData["deploymentName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/resources/deployments",
+	"getUrl"-> "https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.Resources/deployments/`deploymentName`?api-version=2020-06-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.Resources/deployments/?api-version=2020-06-01",
+	"listFilter" -> azRefAzurePattern["azure.resourceGroup"],
+	"parentAzType" -> "azure.resourceGroup",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"deploymentName" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsubsection:: *)
+(*Validate  deployment*)
+
+
+azResourceGroupDeploymentValidate[
+	auth_,
+	azRefAzurePattern["azure.resourceGroup"],
+	deploymentName_String,
+	template_Association,
+	templateParamters_Association
+] :=
+	azHttpPost[auth,
+		{
+			"https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.Resources/deployments/`deploymentName`/validate?api-version=2020-06-01",
+			<| refData, "deploymentName" -> deploymentName |>
+		},
+		<|
+			"properties" -> <|
+				"mode" -> "Incremental",
+				"parameters" -> templateParamters,
+				"template" -> template	
+			|>,
+			"tags" -> <||>
+		|>
+	]
+
+
+(* ::Subsection:: *)
+(*What if deployment*)
+
+
+azResourceGroupDeploymentWhatIf[
+	auth_,
+	azRefAzurePattern["azure.resourceGroup"],
+	deploymentName_String,
+	template_Association,
+	templateParamters_Association
+] :=
+	azHttpPost[auth,
+		{
+			"https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.Resources/deployments/`deploymentName`/whatIf?api-version=2020-06-01",
+			<| refData, "deploymentName" -> deploymentName |>
+		},
+		<|
+			"properties" -> <|
+				"mode" -> "Incremental",
+				"parameters" -> templateParamters,
+				"template" -> template	
+			|>
+		|>
+	]  // resolveHttpStatusCode202[auth, #]&
+
+
+(* ::Subsection:: *)
+(*What if deployment*)
+
+
+azResourceGroupDeploymentCreate[
+	auth_,
+	azRefAzurePattern["azure.resourceGroup"],
+	deploymentName_String,
+	template_Association,
+	templateParamters_Association
+] :=
+	azHttpPut[auth,
+		{
+			"https://management.azure.com/subscriptions/`subscriptionId`/resourcegroups/`resourceGroupName`/providers/Microsoft.Resources/deployments/`deploymentName`?api-version=2020-06-01",
+			<| refData, "deploymentName" -> deploymentName |>
+		},
+		<|
+			"properties" -> <|
+				"mode" -> "Incremental",
+				"parameters" -> templateParamters,
+				"template" -> template	
+			|>
+		|>
+	]  // resolveHttpStatusCode202[auth, #]&
+
+
+(* ::Subsection:: *)
+(*Geo Locations*)
+
+
+azGeoLocationList[auth_, azRefAzurePattern["azure.subscription"]] :=
+	azHttpGet[auth, {
+		"https://management.azure.com/subscriptions/`subscriptionId`/locations?api-version=2020-01-01",
+		ref
+	}] /. ds_Dataset :> ds["value"];
+	
+azGeoLocations[auth_, ref_] := azGeoLocationList[auth, ref] /. ds_Dataset :> Normal@ds[All, "name"];
 
 
 (* ::Section::Closed:: *)

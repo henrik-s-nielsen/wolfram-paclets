@@ -64,7 +64,8 @@ azGeoLocationList;
 azGeoLocations;
 
 (* ARM Templates *)
-azArmTemplate;
+azDeploymentTemplateExport;
+azDeploymentTemplateCreate;
 
 (* Resource Management *)
 azResourceGroups;
@@ -125,6 +126,9 @@ azApiManagementSubscriptionSearch;
 azApiManagementProducts;
 azApiManagementProductList;
 azApiManagementProductSearch;
+azApiManagementProductPolicies;
+azApiManagementProductPolicyList;
+azApiManagementProductPolicySearch;
 azApiManagementApis;
 azApiManagementApiList;
 azApiManagementApiSearch;
@@ -133,6 +137,9 @@ azApiManagementApiRevisionList;
 azApiManagementApiSchemas;
 azApiManagementApiSchemaList;
 azApiManagementApiSchemaSearch;
+azApiManagementApiPolicies;
+azApiManagementApiPolicyList;
+azApiManagementApiPolicySearch;
 azApiManagementGateways;
 azApiManagementGatewayList;
 azApiManagementGatewaySearch;
@@ -145,6 +152,9 @@ azApiManagementDiagnosticSearch;
 azApiManagementApiOperations;
 azApiManagementApiOperationList;
 azApiManagementApiOperationSearch;
+azApiManagementApiOperationPolicies;
+azApiManagementApiOperationPolicyList;
+azApiManagementApiOperationPolicySearch;
 azApiManagementApiReleases;
 azApiManagementApiReleaseList;
 azApiManagementApiReleaseSearch;
@@ -319,7 +329,7 @@ Begin["`Private`"];
 (*Base*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Core*)
 
 
@@ -472,7 +482,7 @@ azHttpDelete[authorizationHeader_String,  url_String] := Module[
 	Sow[req];
 	res = URLRead[req, Interactive -> False];
 	Sow[res];
-	azParseRestResponde@res
+	res
 ]
 
 azHttpPost[auth_, ref_] := azHttpPost[auth,ref, <||>];
@@ -634,7 +644,7 @@ azRelationPlot[rel_List] := Module[{edges,vertices},
 edges=(#/.{t1_->t2_,l_}:>Tooltip[(t1->t2),TableForm@l])&/@rel;
 vertices=(#/.{t1_->t2_,_}:>Splice[{t1->Tooltip[azIcon[t1],t1],t2->Tooltip[azIcon[t2],t2]}])&/@rel;
 GraphPlot[edges,DirectedEdges->True,VertexShape->vertices,VertexSize->0.2,GraphLayout->"RadialEmbedding"] /. 
-	Arrowheads[_]-> Arrowheads[0.01]
+	Arrowheads[_]-> Arrowheads[0.005]
 ]
 
 
@@ -760,7 +770,7 @@ azureParentBuilder[cfg:KeyValuePattern[{
 	"azType"->_String,
 	"parentAzType"->_String
 }]] := TemplateObject[Hold[
-azParent[auth_, azRefDevOpsPattern[TemplateSlot["azType"]]] :=
+azParent[auth_, azRefAzurePattern[TemplateSlot["azType"]]] :=
 	azParent[auth, ref, TemplateSlot["parentAzType"]];
 AppendTo[relations, {TemplateSlot["azType"]->TemplateSlot["parentAzType"], {"azParent"}}];
 ]][cfg] // ReleaseHold
@@ -775,6 +785,16 @@ microsoftIdInfo[TemplateSlot["microsoftType"]] :=
 	"azType" ->  TemplateSlot["azType"],
 	"idTemplate" -> TemplateSlot["microsoftIdTemplate"]
 |>
+]][cfg] // ReleaseHold
+
+azureDeleteBuilder[cfg:KeyValuePattern[{
+	"azType"->_String,
+	"getUrl"->_String
+}]] := TemplateObject[Hold[
+azDelete[authorizationHeader_String, azRefAzurePattern[TemplateSlot["azType"]]] :=
+	azHttpDelete[authorizationHeader,
+		StringTemplate[TemplateSlot["getUrl"]][URLEncode/@refData]
+	] 
 ]][cfg] // ReleaseHold
 
 
@@ -795,7 +815,8 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 		Null] // AppendTo[res,#] &;
 	If[KeyExistsQ[cfg, "microsoftType"],
 		azureMicrosoftIdBuilder[cfg],
-		Null] // AppendTo[res,#] &;				
+		Null] // AppendTo[res,#] &;
+	azureDeleteBuilder[cfg] // AppendTo[res,#] &;				
 	res
 ];
 
@@ -824,7 +845,7 @@ azMicrosoftIdToAzRef[msId_String]:=With[
 ]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*DevOps*)
 
 
@@ -1058,7 +1079,7 @@ Block[{type, typeLabel, bg, display, panelInf},
 
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Subscriptions*)
 
 
@@ -1095,11 +1116,11 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Resource management*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Resource groups*)
 
 
@@ -1126,12 +1147,12 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
-(*Export Templates*)
+(* ::Subsection::Closed:: *)
+(*Export Deployment Template*)
 
 
-azArmTemplate[auth_, azRefAzurePattern["azure.resourceGroup"]] := azArmTemplate[auth, ref, "*"] 
-azArmTemplate[auth_, azRefAzurePattern["azure.resourceGroup"], resourcePattern_String] := Module[{body},
+azDeploymentTemplateExport[auth_, azRefAzurePattern["azure.resourceGroup"]] := azDeploymentTemplateExport[auth, ref, "*"] 
+azDeploymentTemplateExport[auth_, azRefAzurePattern["azure.resourceGroup"], resourcePattern_String] := Module[{data},
 	data = <|
 		"resources"->{resourcePattern},
 		"options"->"IncludeParameterDefaultValue,IncludeComments"
@@ -1142,8 +1163,27 @@ azArmTemplate[auth_, azRefAzurePattern["azure.resourceGroup"], resourcePattern_S
 		}, ExportString[data,"RawJSON"]
 	] // resolveHttpStatusCode202[auth, #]&
 ];
-azArmTemplate[auth_, ref_] := 
-	(azInfo[auth, ref]["id"]) /. id_String :> azArmTemplate[auth, ref["resourceGroupRef"], id]
+azDeploymentTemplateExport[auth_, ref_] := 
+	(azInfo[auth, ref]["id"]) /. id_String :> azDeploymentTemplateExport[auth, ref["resourceGroupRef"], id]
+
+
+(* ::Subsection::Closed:: *)
+(*Create Deployment Template*)
+
+
+azDeploymentTemplateCreate[data:KeyValuePattern[{
+	"parameters" -> _Association,
+	"variables" -> _Association,
+	"resources" -> _List
+}]] :=
+	TemplateObject[
+		<|
+			"$schema" -> "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+			"contentVersion" -> "1.0.0.0",
+			"parameters" -> TemplateSlot["parameters"],
+			"variables" -> TemplateSlot["variables"],
+			"resources" -> TemplateSlot["resources"]
+		|>][data];
 
 
 (* ::Subsection::Closed:: *)
@@ -1169,11 +1209,11 @@ azResourceList[auth_, azRefAzurePattern["azure.resourceGroup"]] :=
 	] /. ds_Dataset :> ds["value",All, <| "azRef" ->  azMicrosoftIdToAzRef[#id], # |>&];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Resource group deployments*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Deployment*)
 
 
@@ -1200,7 +1240,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Validate  deployment*)
 
 
@@ -1227,7 +1267,7 @@ azResourceGroupDeploymentValidate[
 	]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*What if deployment*)
 
 
@@ -1253,8 +1293,8 @@ azResourceGroupDeploymentWhatIf[
 	]  // resolveHttpStatusCode202[auth, #]&
 
 
-(* ::Subsection:: *)
-(*What if deployment*)
+(* ::Subsection::Closed:: *)
+(*Create deployment*)
 
 
 azResourceGroupDeploymentCreate[
@@ -1279,7 +1319,7 @@ azResourceGroupDeploymentCreate[
 	]  // resolveHttpStatusCode202[auth, #]&
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Geo Locations*)
 
 
@@ -1697,11 +1737,11 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*API manager*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Services*)
 
 
@@ -1824,6 +1864,10 @@ azureDefaultOperationsBuilder[cfg];
 (*Products*)
 
 
+(* ::Subsubsection::Closed:: *)
+(*Product*)
+
+
 cfg = <|
 	"azType"->"azure.apiManagement.product",
 	"nameSingular"-> "ApiManagementProduct",
@@ -1851,8 +1895,43 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
+(* ::Subsubsection::Closed:: *)
+(*Product policy*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.product.policy",
+	"nameSingular"-> "ApiManagementProductPolicy",
+	"namePlural"-> "ApiManagementProductPolicies",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData}, refData["productName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/productpolicy",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/products/`productName`/productPolicies",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/products/`productName`/policies/policy?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/products/`productName`/policies?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.product"],
+	"parentAzType" -> "azure.apiManagement.product",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"productName" -> getIdKeyValue[res["id"],"products/"],
+		"policyName" -> res["name"]	
+	|>],
+	"searchFields" -> {"name"}
+|>;
+
+
+azureDefaultOperationsBuilder[cfg];
+
+
 (* ::Subsection::Closed:: *)
 (*API's*)
+
+
+(* ::Subsubsection::Closed:: *)
+(*API*)
 
 
 cfg = <|
@@ -1876,6 +1955,36 @@ cfg = <|
 		"apiDisplayName" -> res["properties","displayName"],
 		"apiRevision" -> res["properties","apiRevision"] 
 		
+	|>],
+	"searchFields" -> {"name"}
+|>;
+azureDefaultOperationsBuilder[cfg];
+
+
+(* ::Subsubsection::Closed:: *)
+(*API policy*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.api.policy",
+	"nameSingular"-> "ApiManagementApiPolicy",
+	"namePlural"-> "ApiManagementApiPolicies",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData}, refData["apiName"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apipolicy",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/policies/policy?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/policies?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.api"],
+	"parentAzType" -> "azure.apiManagement.api",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"apiName" -> getIdKeyValue[res["id"],"apis/"],
+		"policyName" -> res["name"] 
+
 	|>],
 	"searchFields" -> {"name"}
 |>;
@@ -2040,8 +2149,12 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*API Operations*)
+
+
+(* ::Subsubsection:: *)
+(*Operation*)
 
 
 cfg = <|
@@ -2064,6 +2177,36 @@ cfg = <|
 		"apiName" -> getIdKeyValue[res["id"],"apis/"],
 		"operationName" -> res["properties","displayName"],
 		"operationId" -> res["name"]
+	|>],
+	"searchFields" -> {"name"}
+|>;
+azureDefaultOperationsBuilder[cfg]
+
+
+(* ::Subsubsection:: *)
+(*Operation policy*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.api.operation.policy",
+	"nameSingular"-> "ApiManagementApiOperationPolicy",
+	"namePlural"-> "ApiManagementApiOperationPolicies",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData},  refData["operationId"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apioperationpolicy",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/operations/`operationId`/policies/policy?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/operations/`operationId`/policies?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.api.operation"],
+	"parentAzType" -> "azure.apiManagement.api.operation",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"apiName" -> getIdKeyValue[res["id"],"apis/"],
+		"operationId" -> getIdKeyValue[res["id"],"operations/"],
+		"policyName" -> res["name"]
 	|>],
 	"searchFields" -> {"name"}
 |>;
@@ -2098,7 +2241,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*API Version Sets*)
 
 
@@ -2754,11 +2897,11 @@ azDownloadByteArray[auth_, azRefDevOpsPattern["devOps.git.file"]] :=
 	];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Build*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Definition*)
 
 
@@ -2840,7 +2983,7 @@ azDevOpsBuildDefinitionProcess[auth_, azRefDevOpsPattern["devOps.build.definitio
 		a_Association :> Dataset@a;
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Run*)
 
 
@@ -2873,7 +3016,7 @@ azDevOpsBuildRunList[auth_, azRefDevOpsPattern["devOps.build.definition"]] :=
 AppendTo[relations, {"devOps.build.definition"->"devOps.build.run", {"azDevOpsBuildRuns","azDevOpsBuildRunList"}}];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Artifacts*)
 
 
@@ -2909,11 +3052,11 @@ azFileNames[auth_, azRefDevOpsPattern["devOps.build.artifact"]] :=
 	azFileNames[auth, ref["downloadUrl"]];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Release*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Release definition*)
 
 
@@ -3183,7 +3326,7 @@ azDownloadFile[_String, azRefDevOpsPattern["devOps.artifact.version"], path_Stri
 		"--path",path}] /. KeyValuePattern["ExitCode" -> 0] -> path
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Task Agent*)
 
 
@@ -3293,7 +3436,7 @@ azInfo[auth_, azRefDevOpsPattern["devOps.taskAgent.taskGroup"]] :=
 |> // devOpsDefaultOperationsBuilder
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Variable Groups*)
 
 

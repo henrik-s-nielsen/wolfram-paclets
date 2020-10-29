@@ -111,6 +111,7 @@ azLogAnalyticsKubeContainerLog;
 azLogAnalyticsKubeSearchContainerLogs;
 
 (* API manager *)
+azApimPolicy;
 azApiManagementServices;
 azApiManagementServiceList;
 azApiManagementServiceSearch;
@@ -320,6 +321,7 @@ azMicrosoftIdToAzRef;
 refToAzureId;
 parseUri;
 refType;
+azMsTypeFromId;
 
 
 Begin["`Private`"];
@@ -329,7 +331,7 @@ Begin["`Private`"];
 (*Base*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Core*)
 
 
@@ -665,7 +667,7 @@ azConnections /: f_[cnns:azConnections[_Association],ref_azRef,args___] :=
 	f[cnns,{ref},args]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Azure*)
 
 
@@ -1742,6 +1744,20 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 
 
 (* ::Subsection::Closed:: *)
+(*Helpers*)
+
+
+azApimPolicy[auth_,ref:azRef[KeyValuePattern["azType"->"azure.apiManagement.product"]]] :=
+	azApiManagementProductPolicyList[auth,ref]/.ds_Dataset :>(Normal[ds]/.{{}->None,{v_}:> v["properties","value"]} );
+azApimPolicy[auth_,ref:azRef[KeyValuePattern["azType"->"azure.apiManagement.service"]]] :=
+	azApiManagementServicePolicyList[auth,ref]/.ds_Dataset :>(Normal[ds]/.{{}->None,{v_}:> v["properties","value"]} );
+azApimPolicy[auth_,ref:azRef[KeyValuePattern["azType"->"azure.apiManagement.api"]]] :=
+	azApiManagementApiPolicyList[auth,ref]/.ds_Dataset :>(Normal[ds]/.{{}->None,{v_}:> v["properties","value"]} );
+azApimPolicy[auth_,ref:azRef[KeyValuePattern["azType"->"azure.apiManagement.api.operation"]]] :=
+	azApiManagementApiOperationPolicyList[auth,ref]/.ds_Dataset :>(Normal[ds]/.{{}->None,{v_}:> v["properties","value"]} );
+
+
+(* ::Subsection:: *)
 (*Services*)
 
 
@@ -1860,11 +1876,11 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Products*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Product*)
 
 
@@ -1888,7 +1904,9 @@ cfg = <|
 		"productName" -> res["name"]
 		
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"microsoftType" -> "Microsoft.ApiManagement/service/apis/products",
+	"microsoftIdTemplate" -> "/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/products/`productName`"
 |>;
 
 
@@ -1926,11 +1944,32 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsubsection:: *)
+(*List API's*)
+
+
+azApiManagementApiList[auth_, azRefAzurePattern["azure.apiManagement.product"]] :=
+	azHttpGet[auth,{
+		"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/products/`productName`/apis?api-version=2019-12-01",
+		ref
+	}] /. ds_Dataset :> ds[
+		"value",
+		All,
+		<| 
+			"azRef"-> azRefresh[auth, azMicrosoftIdToAzRef[
+				StringReplace[#["id"],"/products/"~~(Except["/"]..)->""]
+			]],
+			#
+		|> &];
+
+AppendTo[relations, {"azure.apiManagement.product"->"azure.apiManagement.api", {"azApiManagementApis","azApiManagementApiList"}}];
+
+
+(* ::Subsection:: *)
 (*API's*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*API*)
 
 
@@ -1939,7 +1978,7 @@ cfg = <|
 	"nameSingular"-> "ApiManagementApi",
 	"namePlural"-> "ApiManagementApis",
 	"panelIcon"-> icons["azure.apiManagement"],
-	"panelLabelFunc"-> Function[{refData}, refData["apiDisplayName"]<>" [" <> refData["apiRevision"] <> "]" ],
+	"panelLabelFunc"-> Function[{refData}, refData["apiName"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apis",
 	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
 	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`?api-version=2019-12-01",
@@ -1956,9 +1995,11 @@ cfg = <|
 		"apiRevision" -> res["properties","apiRevision"] 
 		
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"microsoftType" -> "Microsoft.ApiManagement/service/apis",
+	"microsoftIdTemplate" -> "/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`"
 |>;
-azureDefaultOperationsBuilder[cfg];
+azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Subsubsection::Closed:: *)
@@ -1989,6 +2030,19 @@ cfg = <|
 	"searchFields" -> {"name"}
 |>;
 azureDefaultOperationsBuilder[cfg];
+
+
+(* ::Subsubsection:: *)
+(*List products's*)
+
+
+azApiManagementProductList[auth_, azRefAzurePattern["azure.apiManagement.api"]] :=
+	azHttpGet[auth,{
+		"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/products?api-version=2019-12-01",
+		ref
+	}]  /. ds_Dataset :> ds["value", All ,<|"azRef"-> azRefresh[auth, azMicrosoftIdToAzRef[#["id"]]] , #|> &] ;
+
+AppendTo[relations, {"azure.apiManagement.api"->"azure.apiManagement.product", {"azApiManagementProducts","azApiManagementProductList"}}];
 
 
 (* ::Subsection::Closed:: *)
@@ -2149,11 +2203,11 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*API Operations*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Operation*)
 
 
@@ -2162,7 +2216,7 @@ cfg = <|
 	"nameSingular"-> "ApiManagementApiOperation",
 	"namePlural"-> "ApiManagementApiOperations",
 	"panelIcon"-> icons["azure.apiManagement"],
-	"panelLabelFunc"-> Function[{refData},  refData["operationName"]],
+	"panelLabelFunc"-> Function[{refData},  refData["operationId"]],
 	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apioperation",
 	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
 	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/operations/`operationId`?api-version=2019-12-01",
@@ -2183,7 +2237,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Operation policy*)
 
 

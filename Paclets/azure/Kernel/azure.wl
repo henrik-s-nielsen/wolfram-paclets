@@ -162,6 +162,9 @@ azApiManagementApiReleaseSearch;
 azApiManagementApiVersionSets;
 azApiManagementApiVersionSetList;
 azApiManagementApiVersionSetSearch;
+azApiManagementApiDiagnostics;
+azApiManagementApiDiagnosticList;
+azApiManagementApiDiagnosticSearch;
 
 (* Event Hubs *)
 azEventHubs;
@@ -333,6 +336,10 @@ Begin["`Private`"];
 
 (* ::Subsection:: *)
 (*Core*)
+
+
+apiVersionFromUrl[url_String] :=
+	StringCases[url,"api-version="~~ver:(Except["&"]..):>ver,IgnoreCase->False]/.{v_}:>v;
 
 
 SetAttributes[functionCatch,HoldAllComplete];
@@ -577,6 +584,9 @@ azFileNames[authorizationHeader_String,  url_String] := Module[
 ]
 
 
+azInfo[auth_, msId_String] := azInfo[auth, {ToLowerCase@azMsTypeFromId@msId ,msId}];
+
+
 getIdKeyValue[id_String, idKey_String] := StringCases[
 	id,
 	idKey~~keyval:(Except["/"]..):>(keyval /. {{}:>Nothing, v_:> v }),
@@ -716,8 +726,28 @@ azInfo[authorizationHeader_String, azRefAzurePattern[TemplateSlot["azType"]]] :=
 				"azType" -> TemplateSlot["azType"],
 				TemplateSlot["listResultKeysFunc"][#]
 			|>],
-		 # 
+			# 
 	|> &]
+]][cfg] // ReleaseHold
+
+azureInfoIdBuilder[cfg:KeyValuePattern[{
+	"azType"->_String,
+	"getUrl"->_String,
+	"microsoftType" -> _String
+}]] := TemplateObject[Hold[
+azInfo[authorizationHeader_String, {TemplateExpression[ToLowerCase@TemplateSlot["microsoftType"]], id_String}] := Module[
+		{apiVersion, url},
+		apiVersion = apiVersionFromUrl[TemplateSlot["getUrl"]];
+		url = id <> "?api-version=" <> apiVersion;
+		azHttpGet[authorizationHeader, url] /. ds_Dataset :> ds[<|
+			"azRef" -> azRef[<|
+				"azType" -> TemplateSlot["azType"],
+				TemplateSlot["listResultKeysFunc"][#]
+			|>],
+			# 
+		|> &]
+
+	]
 ]][cfg] // ReleaseHold
 
 azureListBuilder[cfg:KeyValuePattern[{
@@ -807,6 +837,9 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 		azureOpenUiBuilder[cfg],
 		Null] // AppendTo[res,#] &;
 	azureInfoBuilder[cfg] // AppendTo[res,#] &;
+	If[KeyExistsQ[cfg, "microsoftType"],
+		azureInfoIdBuilder[cfg],
+		Null] // AppendTo[res,#] &; 
 	azureListBuilder[cfg] // AppendTo[res,#] &;
 	azureRestDocumentationBuilder[cfg] // AppendTo[res,#] &;
 	If[KeyExistsQ[cfg, "searchFields"],
@@ -815,7 +848,7 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 	If[KeyExistsQ[cfg, "parentAzType"],
 		azureRelationBuilder[cfg]; devOpsParentBuilder[cfg],
 		Null] // AppendTo[res,#] &;
-	If[KeyExistsQ[cfg, "microsoftType"],
+	If[KeyExistsQ[cfg, "microsoftIdTemplate"],
 		azureMicrosoftIdBuilder[cfg],
 		Null] // AppendTo[res,#] &;
 	azureDeleteBuilder[cfg] // AppendTo[res,#] &;				
@@ -1757,7 +1790,7 @@ azApimPolicy[auth_,ref:azRef[KeyValuePattern["azType"->"azure.apiManagement.api.
 	azApiManagementApiOperationPolicyList[auth,ref]/.ds_Dataset :>(Normal[ds]/.{{}->None,{v_}:> v["properties","value"]} );
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Services*)
 
 
@@ -1817,7 +1850,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Loggers*)
 
 
@@ -1840,9 +1873,10 @@ cfg = <|
 		"serviceName" -> getIdKeyValue[res["id"],"service/"],
 		"loggerName" -> res["name"]
 	|>],
-	"searchFields" -> {"name"}
+	"searchFields" -> {"name"},
+	"microsoftType" -> "Microsoft.ApiManagement/service/loggers"
 |>;
-azureDefaultOperationsBuilder[cfg];
+azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Subsection::Closed:: *)
@@ -1880,7 +1914,7 @@ azureDefaultOperationsBuilder[cfg];
 (*Products*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*Product*)
 
 
@@ -1910,7 +1944,7 @@ cfg = <|
 |>;
 
 
-azureDefaultOperationsBuilder[cfg];
+azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Subsubsection::Closed:: *)
@@ -1944,7 +1978,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*List API's*)
 
 
@@ -1969,7 +2003,7 @@ AppendTo[relations, {"azure.apiManagement.product"->"azure.apiManagement.api", {
 (*API's*)
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*API*)
 
 
@@ -2032,7 +2066,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsubsection:: *)
+(* ::Subsubsection::Closed:: *)
 (*List products's*)
 
 
@@ -2043,6 +2077,38 @@ azApiManagementProductList[auth_, azRefAzurePattern["azure.apiManagement.api"]] 
 	}]  /. ds_Dataset :> ds["value", All ,<|"azRef"-> azRefresh[auth, azMicrosoftIdToAzRef[#["id"]]] , #|> &] ;
 
 AppendTo[relations, {"azure.apiManagement.api"->"azure.apiManagement.product", {"azApiManagementProducts","azApiManagementProductList"}}];
+
+
+(* ::Subsubsection::Closed:: *)
+(*API Diagnostics*)
+
+
+cfg = <|
+	"azType"->"azure.apiManagement.api.diagnostic",
+	"nameSingular"-> "ApiManagementApiDiagnostic",
+	"namePlural"-> "ApiManagementApiDiagnostics",
+	"panelIcon"-> icons["azure.apiManagement"],
+	"panelLabelFunc"-> Function[{refData}, refData["apiName"]<>" / "<>refData["diagnosticId"]],
+	"restDocumentation"->"https://docs.microsoft.com/en-us/rest/api/apimanagement/2019-12-01/apidiagnostic",
+	"uiUrl" -> "/resource/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apim-apis",
+	"getUrl"->"https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/diagnostics/`diagnosticId`?api-version=2019-12-01",
+	"listUrl" -> "https://management.azure.com/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`/diagnostics?api-version=2019-12-01",
+	"listFilter" -> azRefAzurePattern["azure.apiManagement.api"],
+	"parentAzType" -> "azure.apiManagement.api",
+	"listResultKeysFunc" -> Function[{res}, <|
+		"subscriptionId" -> subscriptionIdFromId[res["id"]],
+		"subscriptionName" -> ref["subscriptionName"],
+		"resourceGroupName" -> resourceGroupNameFromId[res["id"]],
+		"serviceName" -> getIdKeyValue[res["id"],"service/"],
+		"apiName" -> getIdKeyValue[res["id"],"apis/"],
+		"diagnosticId" -> res["name"] 
+		
+	|>],
+	"searchFields" -> {"name"},
+	"microsoftType" -> "Microsoft.ApiManagement/service/apis",
+	"microsoftIdTemplate" -> "/subscriptions/`subscriptionId`/resourceGroups/`resourceGroupName`/providers/Microsoft.ApiManagement/service/`serviceName`/apis/`apiName`"
+|>;
+azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Subsection::Closed:: *)
@@ -2207,7 +2273,7 @@ azureDefaultOperationsBuilder[cfg]
 (*API Operations*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Operation*)
 
 

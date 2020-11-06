@@ -14,7 +14,7 @@
 (*- https://stackoverflow.com/questions/58598532/what-is-api-equivalent-of-az-account-list*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Header*)
 
 
@@ -334,7 +334,7 @@ Begin["`Private`"];
 (*Base*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Core*)
 
 
@@ -677,7 +677,7 @@ azConnections /: f_[cnns:azConnections[_Association],ref_azRef,args___] :=
 	f[cnns,{ref},args]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Azure*)
 
 
@@ -738,7 +738,7 @@ azureInfoIdBuilder[cfg:KeyValuePattern[{
 azInfo[authorizationHeader_String, {TemplateExpression[ToLowerCase@TemplateSlot["microsoftType"]], id_String}] := Module[
 		{apiVersion, url},
 		apiVersion = apiVersionFromUrl[TemplateSlot["getUrl"]];
-		url = id <> "?api-version=" <> apiVersion;
+		url = "https://management.azure.com" <> id <> "?api-version=" <> apiVersion;
 		azHttpGet[authorizationHeader, url] /. ds_Dataset :> ds[<|
 			"azRef" -> azRef[<|
 				"azType" -> TemplateSlot["azType"],
@@ -746,7 +746,6 @@ azInfo[authorizationHeader_String, {TemplateExpression[ToLowerCase@TemplateSlot[
 			|>],
 			# 
 		|> &]
-
 	]
 ]][cfg] // ReleaseHold
 
@@ -1114,11 +1113,11 @@ Block[{type, typeLabel, bg, display, panelInf},
 
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Subscriptions*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Subscription*)
 
 
@@ -1879,6 +1878,15 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
+azApiManagementLoggerList[auth_, azRefAzurePattern["azure.apiManagement.api.diagnostic"]] := Module[
+	{diag},
+	diag = azInfo[auth, ref];
+	{Normal@azInfo[auth, diag["properties","loggerId"]]} // Dataset
+];
+
+AppendTo[relations, {"azure.apiManagement.api.diagnostic"->"azure.apiManagement.logger", {"azApiManagementLoggers","azApiManagementLoggerList"}}];
+
+
 (* ::Subsection::Closed:: *)
 (*Subscriptions*)
 
@@ -1910,7 +1918,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Products*)
 
 
@@ -2079,7 +2087,7 @@ azApiManagementProductList[auth_, azRefAzurePattern["azure.apiManagement.api"]] 
 AppendTo[relations, {"azure.apiManagement.api"->"azure.apiManagement.product", {"azApiManagementProducts","azApiManagementProductList"}}];
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*API Diagnostics*)
 
 
@@ -2111,7 +2119,19 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection::Closed:: *)
+azApiManagementDiagnosticList[auth_, azRefAzurePattern["azure.apiManagement.logger"]] := Module[
+	{loggerId, apimService ,diags, apis},
+	loggerId = azInfo[auth,ref]["id"];
+	apimService = azParent[auth, ref];
+	apis = azApiManagementApis[auth,apimService];
+	diags = Flatten[Normal@azApiManagementApiDiagnosticList[auth, #]& /@ apis] // Dataset;
+	diags[Select[ToLowerCase[#["properties","loggerId"]] == ToLowerCase@loggerId &]]
+];
+
+AppendTo[relations, {"azure.apiManagement.logger"->"azure.apiManagement.api.diagnostic", {"azApiManagementDiagnostics","azApiManagementDiagnosticList"}}];
+
+
+(* ::Subsection:: *)
 (*API revision*)
 
 

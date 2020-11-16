@@ -4,7 +4,7 @@
 (*Azure*)
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Notes*)
 
 
@@ -14,7 +14,7 @@
 (*- https://stackoverflow.com/questions/58598532/what-is-api-equivalent-of-az-account-list*)
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Header*)
 
 
@@ -677,7 +677,7 @@ azConnections /: f_[cnns:azConnections[_Association],ref_azRef,args___] :=
 	f[cnns,{ref},args]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Azure*)
 
 
@@ -845,7 +845,7 @@ azureDefaultOperationsBuilder[cfg_Association] := Module[
 		azureSearchBuilder[cfg],
 		Null] // AppendTo[res,#] &;
 	If[KeyExistsQ[cfg, "parentAzType"],
-		azureRelationBuilder[cfg]; devOpsParentBuilder[cfg],
+		azureRelationBuilder[cfg]; azureParentBuilder[cfg],
 		Null] // AppendTo[res,#] &;
 	If[KeyExistsQ[cfg, "microsoftIdTemplate"],
 		azureMicrosoftIdBuilder[cfg],
@@ -1113,11 +1113,11 @@ Block[{type, typeLabel, bg, display, panelInf},
 
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Subscriptions*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Subscription*)
 
 
@@ -1150,11 +1150,11 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Resource management*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Resource groups*)
 
 
@@ -1243,11 +1243,11 @@ azResourceList[auth_, azRefAzurePattern["azure.resourceGroup"]] :=
 	] /. ds_Dataset :> ds["value",All, <| "azRef" ->  azMicrosoftIdToAzRef[#id], # |>&];
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Resource group deployments*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Deployment*)
 
 
@@ -1366,7 +1366,7 @@ azGeoLocationList[auth_, azRefAzurePattern["azure.subscription"]] :=
 azGeoLocations[auth_, ref_] := azGeoLocationList[auth, ref] /. ds_Dataset :> Normal@ds[All, "name"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Azure kubernetes service*)
 
 
@@ -1396,7 +1396,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Log analytics*)
 
 
@@ -1424,7 +1424,7 @@ azLogAnalyticsTableStatistics[authorizationHeader_String,ref_, dateRange:{_DateO
 	", dateRange] /. ds_Dataset :> ds["Table_0",GroupBy["DataType"],Total /* (UnitConvert[#,Quantity[1,"Gigabytes"]]&),Quantity[#Quantity,#QuantityUnit]&][ReverseSort]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Workspaces*)
 
 
@@ -1539,7 +1539,7 @@ azLogAnalyticsKubeSearchContainerLogs[auth_,ref_, str_String, dateRange_: Null] 
 		ds_Dataset:>ds["Table_0"]
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Application Gateway*)
 
 
@@ -1789,11 +1789,11 @@ azApimPolicy[auth_,ref:azRef[KeyValuePattern["azType"->"azure.apiManagement.api.
 	azApiManagementApiOperationPolicyList[auth,ref]/.ds_Dataset :>(Normal[ds]/.{{}->None,{v_}:> v["properties","value"]} );
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Services*)
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Service*)
 
 
@@ -1818,7 +1818,7 @@ cfg = <|
 	"searchFields" -> {"name"}
 |>;
 
-azureDefaultOperationsBuilder[cfg];
+azureDefaultOperationsBuilder[cfg]
 
 
 (* ::Subsubsection::Closed:: *)
@@ -1849,7 +1849,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Loggers*)
 
 
@@ -2131,7 +2131,7 @@ azApiManagementDiagnosticList[auth_, azRefAzurePattern["azure.apiManagement.logg
 AppendTo[relations, {"azure.apiManagement.logger"->"azure.apiManagement.api.diagnostic", {"azApiManagementDiagnostics","azApiManagementDiagnosticList"}}];
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*API revision*)
 
 

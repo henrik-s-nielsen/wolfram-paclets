@@ -103,6 +103,7 @@ azLogQueryInfo;
 azLogMetadata;
 
 (* Log analytics - kubernetes*)
+azLogKubeLogSummary;
 azLogAnalyticsKubeContainerShortNames;
 azLogAnalyticsKubeContainerIdToShortName;
 azLogAnalyticsKubeContainerIds;
@@ -334,7 +335,7 @@ Begin["`Private`"];
 (*Base*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Core*)
 
 
@@ -677,7 +678,7 @@ azConnections /: f_[cnns:azConnections[_Association],ref_azRef,args___] :=
 	f[cnns,{ref},args]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Azure*)
 
 
@@ -1150,7 +1151,7 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Resource management*)
 
 
@@ -1179,6 +1180,15 @@ cfg = <|
 |>;
 
 azureDefaultOperationsBuilder[cfg]
+
+
+azResourceGroupList[auth_, ref_azRef] := 
+	azRef[<|
+		"azType" -> "azure.resourceGroup",
+		"subscriptionId" -> ref["subscriptionId"],
+		"subscriptionName" -> ref["subscriptionName"],
+		"resourceGroupName" -> ref["resourceGroupName"]
+	|>] /; ref["azType"]=!="azure.subscription" 
 
 
 (* ::Subsection::Closed:: *)
@@ -1366,7 +1376,7 @@ azGeoLocationList[auth_, azRefAzurePattern["azure.subscription"]] :=
 azGeoLocations[auth_, ref_] := azGeoLocationList[auth, ref] /. ds_Dataset :> Normal@ds[All, "name"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Azure kubernetes service*)
 
 
@@ -1453,7 +1463,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Meta data*)
 
 
@@ -1483,7 +1493,7 @@ azLogMetadata[
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*AKS*)
 
 
@@ -1491,22 +1501,42 @@ azLogMetadata[
 (*https://docs.microsoft.com/en-us/azure/azure-monitor/insights/containers*)
 
 
-azLogAnalyticsKubeContainerShortNames[auth_,ref_] :=
-	azLogAnalyticsQuery[auth, ref, "KubePodInventory | distinct ContainerName "] /. ds_Dataset :> 
+azLogKubeLogSummary[auth_, ref_] :=
+	azLogQuery[auth, ref, "
+ContainerLog |
+summarize Count=count(), StartDate=min(TimeGenerated), EndDate=max(TimeGenerated) by ContainerID |
+join (KubePodInventory | distinct ContainerID, ContainerName ) 
+on $left.ContainerID == $right.ContainerID"
+] /. ds_Dataset :> 
+	ds["Table_0", All, <|
+		"ContainerBaseName" -> Last@StringSplit[#["ContainerName"], "/"],
+		"ContainerName" -> #["ContainerName"], 
+		"ContainerId" -> #["ContainerID"],
+		"LineCount" -> #["Count"],
+		"StartDate" -> DateObject[#["StartDate"],"Instant",TimeZone->"Zulu"],
+		"EndDate"->DateObject[#["EndDate"],"Instant",TimeZone->"Zulu"]
+	|>&][SortBy["ContainerBaseName"]
+]
+
+
+
+
+azLogAnalyticsKubeContainerShortNames[auth_,ref_, args___] :=
+	azLogQuery[auth, ref, "KubePodInventory | distinct ContainerName ", args] /. ds_Dataset :> 
 			Sort@DeleteDuplicates[Last@StringSplit[#,"/"]& /@ (Normal@ ds["Table_0",All,"ContainerName"] /. "" -> Nothing)];
 
 
 azLogAnalyticsKubeContainerIds[auth_,ref_, containerNameFilter_String] := 
-	azLogAnalyticsQuery[auth, ref, StringTemplate["KubePodInventory | where ContainerName has '``' | distinct ContainerID"][containerNameFilter]] /.
+	azLogQuery[auth, ref, StringTemplate["KubePodInventory | where ContainerName has '``' | distinct ContainerID"][containerNameFilter]] /.
 		ds_Dataset :> (Normal[ds["Table_0",All,"ContainerID"]] /. "" -> Nothing);
 		
 azLogAnalyticsKubeContainerIds[auth_,ref_] := 
-	azLogAnalyticsQuery[auth, ref, StringTemplate["KubePodInventory  | distinct ContainerID"][containerNameFilter]] /.
+	azLogQuery[auth, ref, StringTemplate["KubePodInventory  | distinct ContainerID"][containerNameFilter]] /.
 		ds_Dataset :> (Normal[ds["Table_0",All,"ContainerID"]] /. "" -> Nothing)
 
 
 azLogAnalyticsKubeContainerLogStatistics[auth_,ref_ , containerId_] := 
-	azLogAnalyticsQuery[auth, ref, StringTemplate[
+	azLogQuery[auth, ref, StringTemplate[
 		"ContainerLog | where ContainerID == '`1`' | summarize ContainerId='`1`',StartLogTime=min(TimeGenerated),EndLogTime=max(TimeGenerated),Count=count()"
 	][containerId]] /. 
 		ds_Dataset :> Normal[ds["Table_0",SortBy["StartLogTime"]]] /.{v_}:>v
@@ -1516,30 +1546,30 @@ azLogAnalyticsKubeContainerLog[auth_,ref_, containerIds_List, dateRange_] :=
 	Dataset[Flatten[Normal@azLogAnalyticsKubeContainerLog[auth,ref,#,dateRange] & /@ containerIds]];
 
 azLogAnalyticsKubeContainerLog[auth_,ref_, containerId_String, dateRange_: Null] := 
-	azLogAnalyticsQuery[auth, ref, StringTemplate[
+	azLogQuery[auth, ref, StringTemplate[
 		"ContainerLog | where ContainerID == '``' | project TimeGenerated,LogEntry, ContainerID "][containerId], 
 		dateRange] /.
 			ds_Dataset :> ds["Table_0", SortBy["TimeGenerated"]];
 			
 azLogAnalyticsKubeContainerLog[auth_,ref_, All, dateRange_] := 
-	azLogAnalyticsQuery[auth, ref, 
+	azLogQuery[auth, ref, 
 		"ContainerLog | project TimeGenerated,LogEntry, ContainerID ", 
 		dateRange] /.
 			ds_Dataset:>ds["Table_0", SortBy["TimeGenerated"]]
 
 
 azLogAnalyticsKubeContainerIdToShortName[auth_,ref_, containerId_String] :=
-	azLogAnalyticsQuery[auth, ref, 
+	azLogQuery[auth, ref, 
 		StringTemplate["KubePodInventory | where ContainerID == '``' | take 1 "][containerId]] /.
 			ds_Dataset :> Last@StringSplit[Normal@ds["Table_0",1,"ContainerName"], "/"]
 
 
-azLogAnalyticsKubeSearchContainerLogs[auth_,ref_, str_String, dateRange_: Null] := azLogAnalyticsQuery[auth, ref, StringTemplate[
+azLogAnalyticsKubeSearchContainerLogs[auth_,ref_, str_String, dateRange_: Null] := azLogQuery[auth, ref, StringTemplate[
 	"ContainerLog | where LogEntry  contains '``' | take 1000 | project TimeGenerated,LogEntry,ContainerID "][str], dateRange] /.
 		ds_Dataset:>ds["Table_0"]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Application Gateway*)
 
 
@@ -1578,11 +1608,11 @@ azAppGatewayAvailableWafRuleList[auth_, azRefAzurePattern["azure.subscription"]]
 	] /. ds_Dataset :> ds["value"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Monitor*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Log Query*)
 
 
@@ -1771,7 +1801,7 @@ azDataCollectionRules[authorizationHeader_, azRefAzurePattern["azure.subscriptio
 	]	
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*API manager*)
 
 

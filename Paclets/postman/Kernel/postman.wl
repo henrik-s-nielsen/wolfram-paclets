@@ -27,7 +27,7 @@ importItem[item_Association] := <|
 	If[KeyExistsQ[item,"request"],"request"->importRequest@item["request"],Nothing]
 |>;
 
-importAuth[auth_Association] := Module[
+importAuth[auth_KeyValuePattern["type"-> "basic"]] := Module[
 	{authAssociation=<|#key->#value& /@ auth["basic"]|>},
 	With[{
 		username = strTemplate@authAssociation["username"],

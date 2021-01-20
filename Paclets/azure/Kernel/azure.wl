@@ -103,7 +103,8 @@ azLogQueryInfo;
 azLogMetadata;
 
 (* Log analytics - kubernetes*)
-azLogKubeLogSummary;
+azLogQueryKubeLogSummary;
+azLogQueryKubeContainerEntriesAround;
 azLogAnalyticsKubeContainerShortNames;
 azLogAnalyticsKubeContainerIdToShortName;
 azLogAnalyticsKubeContainerIds;
@@ -335,7 +336,7 @@ Begin["`Private`"];
 (*Base*)
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Core*)
 
 
@@ -1434,7 +1435,7 @@ azLogAnalyticsTableStatistics[authorizationHeader_String,ref_, dateRange:{_DateO
 	", dateRange] /. ds_Dataset :> ds["Table_0",GroupBy["DataType"],Total /* (UnitConvert[#,Quantity[1,"Gigabytes"]]&),Quantity[#Quantity,#QuantityUnit]&][ReverseSort]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Workspaces*)
 
 
@@ -1463,7 +1464,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Subsection:: *)
+(* ::Subsection::Closed:: *)
 (*Meta data*)
 
 
@@ -1501,24 +1502,37 @@ azLogMetadata[
 (*https://docs.microsoft.com/en-us/azure/azure-monitor/insights/containers*)
 
 
-azLogKubeLogSummary[auth_, ref_] :=
+azLogQueryKubeLogSummary[auth_, ref_] :=
 	azLogQuery[auth, ref, "
 ContainerLog |
 summarize Count=count(), StartDate=min(TimeGenerated), EndDate=max(TimeGenerated) by ContainerID |
 join (KubePodInventory | distinct ContainerID, ContainerName ) 
 on $left.ContainerID == $right.ContainerID"
-] /. ds_Dataset :> 
-	ds["Table_0", All, <|
+]  /. ds_Dataset :> 
+	ds[1, All, <|
 		"ContainerBaseName" -> Last@StringSplit[#["ContainerName"], "/"],
 		"ContainerName" -> #["ContainerName"], 
 		"ContainerId" -> #["ContainerID"],
 		"LineCount" -> #["Count"],
 		"StartDate" -> DateObject[#["StartDate"],"Instant",TimeZone->"Zulu"],
 		"EndDate"->DateObject[#["EndDate"],"Instant",TimeZone->"Zulu"]
-	|>&][SortBy["ContainerBaseName"]
-]
+	|>&][SortBy["ContainerBaseName"] 
+] 
 
 
+azLogQueryKubeContainerEntriesAround[cnn_, law_ , logEntry_Association] :=
+	azLogQueryKubeContainerEntriesAround[cnn, law, logEntry, 2];
+azLogQueryKubeContainerEntriesAround[cnn_, law_ , logEntry_Association,seconds_Integer] := Module[
+	{entryTime, containerId},
+	entryTime=logEntry["TimeGenerated"];
+	containerId=logEntry["ContainerID"];
+	azLogQuery[
+		cnn, 
+		law, 
+		StringTemplate["ContainerLog | where ContainerID == \"``\"  "][containerId],
+		{entryTime-Quantity[seconds,"Seconds"], entryTime+Quantity[seconds,"Seconds"]}
+	] /. ds_Dataset :> ds["Table_0"]
+];
 
 
 azLogAnalyticsKubeContainerShortNames[auth_,ref_, args___] :=

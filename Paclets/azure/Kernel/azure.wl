@@ -26,11 +26,13 @@ azConnections;
 azRefresh;
 azHttpGet;
 azHttpGetPaged;
+azHttpGetOPaged;
 azHttpPost;
 azHttpPut;
 azHttpPatch;
 azHttpDelete;
 azShellGetToken;
+azShellGetGraphToken;
 azRef;
 azCreateAzRef;
 azInfo;
@@ -79,6 +81,12 @@ azResourceGroupDeploymentSearch;
 azResourceGroupDeploymentValidate;
 azResourceGroupDeploymentWhatIf;
 azResourceGroupDeploymentCreate;
+
+(* MS Graph *)
+azGraphUsers;
+azGraphUserList;
+azGraphGroups;
+azGraphGroupList;
 
 (* Auzure kubernetes service *)
 azAksClusters;
@@ -447,11 +455,11 @@ azParseRestResponde[res_] :=
 
 
 (* https://docs.microsoft.com/en-us/previous-versions/azure/dn645543(v=azure.100)?redirectedfrom=MSDN *)
+azShellGetGraphToken[] := 
+	azShellGetToken@{"account", "get-access-token", "--resource-type", "ms-graph"};
 azShellGetToken[azRef[KeyValuePattern["subscriptionId" -> id_String]], args___] := azShellGetToken[id, args];
 azShellGetToken[subscriptionId_String] :=
 	azShellGetToken@{"account","get-access-token","--subscription", subscriptionId};
-azShellGetToken[subscriptionId_String, resource_String] :=
-	azShellGetToken@{"account","get-access-token","--subscription", subscriptionId, "--resource", resource};
 azShellGetToken[{args___}] := RunProcess[{$azExe, args}] /.
 	KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_,"--subscription" ->subscriptionId }] :> 
 		ImportString[std,"RawJSON"] /. KeyValuePattern[{"ExitCode"->0,"StandardOutput"->std_}] :> 
@@ -463,7 +471,11 @@ azShellGetToken[{args___}] := RunProcess[{$azExe, args}] /.
 toIso8601[{from_,to_}] := toIso8601@from<>"/"<>toIso8601@to;
 toIso8601[date_DateObject] := DateString[DateObject[date,TimeZone->"Zulu"],"ISODateTime"]<>"Z";
 
-azHttpGetPaged[auth_ ,args___] := azHttpGet[auth, args] // (pageData[auth, #] /. l_List :> Dataset@l) & 
+azHttpGetPaged[auth_ ,args___] := azHttpGet[auth, args] // 
+	(pageData[auth, #] /. l_List :> Dataset@l) & 
+
+azHttpGetOPaged[auth_ ,args___] := azHttpGet[auth, args] // 
+	(pageOData[auth, #] /. l_List :> Dataset@l) & 
 
 azHttpGet[auth_,{urlTemplate_String,azRef[data_Association]}, args___]:=
 	azHttpGet[auth,StringTemplate[urlTemplate][URLEncode/@ data],args];
@@ -613,7 +625,16 @@ pageData[auth_,data_Association] := (
 				KeyExistsQ[data,"nextLink"];
 pageData[auth_String,data_Association]:=data["value"] /;
 				!KeyExistsQ[data,"nextLink"];
-								
+
+pageOData[auth_, r_HTTPResponse] := r;
+pageOData[auth_, ds_Dataset] := pageOData[auth, Normal@ds];
+pageOData[auth_,data_Association] := (
+	PrintTemporary[StringTemplate["Paging: ``"][Length@data["value"]]];
+	data["value"] ~ Join ~ pageOData[auth, azHttpGet[auth,data["@odata.nextLink"]]]) /;
+				KeyExistsQ[data,"@odata.nextLink"];
+pageOData[auth_String,data_Association]:=data["value"] /;
+				!KeyExistsQ[data,"@odata.nextLink"];
+																								
 resolveHttpStatusCode202[auth_, response_HTTPResponse] := Module[
 	{res=response, loc},
 	While[
@@ -679,7 +700,7 @@ azConnections /: f_[cnns:azConnections[_Association],ref_azRef,args___] :=
 	f[cnns,{ref},args]
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Azure*)
 
 
@@ -1119,7 +1140,7 @@ Block[{type, typeLabel, bg, display, panelInf},
 (*Subscriptions*)
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Subscription*)
 
 
@@ -1149,6 +1170,59 @@ azShellGetSubscriptionList[] := RunProcess[{$azExe ,"account","list"}] /.
 				"subscriptionName" -> #["name"],
 				"subscriptionId" -> #["id"]
 			|>], # |> &]
+
+
+
+(* ::Section:: *)
+(*Graph*)
+
+
+(* ::Subsection:: *)
+(*Users*)
+
+
+azGraphUsers[auth_] :=
+	azGraphUserList[auth] /. ds_Dataset :> Normal@ds[All, "azRef"];
+azGraphUserList[auth_] := 
+	azHttpGetOPaged[auth, "https://graph.microsoft.com/v1.0/users"] /. ds_Dataset :> ds[All,
+		<| "azRef" -> azRef[<|
+			"azType" -> "azure.graph.user",
+			"name" -> #["displayName"],
+			"email" -> #["mail"],
+			"userId" -> #["id"]
+		|>], # |> &
+	]
+	
+panelInfo["azure.graph.user"] := <|
+	"icon" -> icons["azure.graph.user"],
+	"labelFunc" -> Function[{refData}, refData["name"]]
+|>;
+azIcon[azRefAzurePattern["azure.graph.user"]] := azIcon[refData["azType"]];
+azIcon["azure.graph.user"] := icons["azure.graph.user"];
+
+
+
+(* ::Subsection:: *)
+(*Groups*)
+
+
+azGraphGroups[auth_] :=
+	azGraphGroupList[auth] /. ds_Dataset :> Normal@ds[All, "azRef"];
+azGraphGroupList[auth_] := 
+	azHttpGetOPaged[auth, "https://graph.microsoft.com/v1.0/groups"] /. ds_Dataset :> ds[All,
+		<| "azRef" -> azRef[<|
+			"azType" -> "azure.graph.group",
+			"name" -> #["displayName"],
+			"groupId" -> #["id"]
+		|>], # |> &
+	]
+	
+panelInfo["azure.graph.group"] := <|
+	"icon" -> icons["azure.graph.group"],
+	"labelFunc" -> Function[{refData}, refData["name"]]
+|>;
+azIcon[azRefAzurePattern["azure.graph.user"]] := azIcon[refData["azType"]];
+azIcon["azure.graph.group"] := icons["azure.graph.group"];
 
 
 
@@ -1377,7 +1451,7 @@ azGeoLocationList[auth_, azRefAzurePattern["azure.subscription"]] :=
 azGeoLocations[auth_, ref_] := azGeoLocationList[auth, ref] /. ds_Dataset :> Normal@ds[All, "name"];
 
 
-(* ::Section::Closed:: *)
+(* ::Section:: *)
 (*Azure kubernetes service*)
 
 
@@ -1407,7 +1481,7 @@ cfg = <|
 azureDefaultOperationsBuilder[cfg]
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Log analytics*)
 
 
@@ -1622,7 +1696,7 @@ azAppGatewayAvailableWafRuleList[auth_, azRefAzurePattern["azure.subscription"]]
 	] /. ds_Dataset :> ds["value"];
 
 
-(* ::Section:: *)
+(* ::Section::Closed:: *)
 (*Monitor*)
 
 
@@ -2855,7 +2929,7 @@ azInfo[auth_, ref:azRef[KeyValuePattern["azType"->"devOps.organization"]]] := re
 
 
 
-(* ::Subsection::Closed:: *)
+(* ::Subsection:: *)
 (*Git*)
 
 
@@ -2937,7 +3011,7 @@ azDevOpsGitRefList[authorizationHeader_String, azRefDevOpsPattern["devOps.git.co
 AppendTo[relations, {"devOps.git.ref"->"devOps.git.commit", {"azDevOpsGitRefs","azDevOpsGitRefList"}}];
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Commits*)
 
 
